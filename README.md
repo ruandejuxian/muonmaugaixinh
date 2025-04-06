@@ -1,4 +1,4 @@
-# Thư Viện Ảnh - Muôn Màu gái xinh
+# Thư Viện Ảnh - Modern Photo Gallery
 
 Thư Viện Ảnh là một ứng dụng web hiện đại để chia sẻ và quản lý bộ sưu tập ảnh, sử dụng Google Drive làm nơi lưu trữ và Google Sheets làm cơ sở dữ liệu.
 

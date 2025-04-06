@@ -9,16 +9,32 @@ class SheetsAPI {
   // Send data to Google Sheet
   async sendToSheet(data) {
     try {
-      // For demo purposes, we'll just log the data
-      console.log('Sending data to Google Sheet:', data);
+      // Prepare form data
+      const formData = new FormData();
+      formData.append('action', 'addData');
+      formData.append('sheetId', this.sheetId);
+      formData.append('data', JSON.stringify(data));
       
-      // In a real implementation, we would send a POST request to the Google Apps Script web app
-      // For now, we'll simulate a successful response
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Send request
+      const response = await fetch(this.scriptUrl, {
+        method: 'POST',
+        body: formData
+      });
       
-      return { success: true, message: 'Data sent successfully' };
+      // Check response
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Unknown error');
+      }
+      
+      return result;
     } catch (error) {
-      console.error('Error sending data to Google Sheet:', error);
+      console.error('Error sending to Google Sheet:', error);
       throw error;
     }
   }
@@ -26,13 +42,33 @@ class SheetsAPI {
   // Send data to pending sheet
   async sendToPendingSheet(data) {
     try {
-      // Add sheet name to data
-      data.sheetName = this.pendingSheetName;
+      // Prepare form data
+      const formData = new FormData();
+      formData.append('action', 'addToPending');
+      formData.append('sheetId', this.sheetId);
+      formData.append('sheetName', this.pendingSheetName);
+      formData.append('data', JSON.stringify(data));
       
-      // Send to sheet
-      return await this.sendToSheet(data);
+      // Send request
+      const response = await fetch(this.scriptUrl, {
+        method: 'POST',
+        body: formData
+      });
+      
+      // Check response
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Unknown error');
+      }
+      
+      return result;
     } catch (error) {
-      console.error('Error sending data to pending sheet:', error);
+      console.error('Error sending to pending sheet:', error);
       throw error;
     }
   }

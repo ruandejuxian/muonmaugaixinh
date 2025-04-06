@@ -49,6 +49,15 @@ class UploadHandler {
                   <input type="text" id="single-model-name" placeholder="Nhập tên người mẫu">
                 </div>
                 <div class="form-group">
+                  <label for="single-category">Danh mục</label>
+                  <select id="single-category">
+                    <option value="vietnam">Gái Việt</option>
+                    <option value="western">Gái Âu Mỹ</option>
+                    <option value="asian">Gái Châu Á</option>
+                    <option value="other">Nơi Khác</option>
+                  </select>
+                </div>
+                <div class="form-group">
                   <label for="single-sender-name">Tên người gửi</label>
                   <input type="text" id="single-sender-name" placeholder="Nhập tên của bạn" required>
                 </div>
@@ -67,6 +76,15 @@ class UploadHandler {
               <div class="form-group">
                 <label for="album-model-name">Tên người mẫu (nếu có)</label>
                 <input type="text" id="album-model-name" placeholder="Nhập tên người mẫu">
+              </div>
+              <div class="form-group">
+                <label for="album-category">Danh mục</label>
+                <select id="album-category">
+                  <option value="vietnam">Gái Việt</option>
+                  <option value="western">Gái Âu Mỹ</option>
+                  <option value="asian">Gái Châu Á</option>
+                  <option value="other">Nơi Khác</option>
+                </select>
               </div>
               <div class="form-group">
                 <label for="album-sender-name">Tên người gửi</label>
@@ -232,22 +250,26 @@ class UploadHandler {
     // Reset single upload form
     const singleModelName = document.getElementById('single-model-name');
     const singleSenderName = document.getElementById('single-sender-name');
+    const singleCategory = document.getElementById('single-category');
     const singleSelectedFiles = document.getElementById('single-selected-files');
     
     if (singleModelName) singleModelName.value = '';
     if (singleSenderName) singleSenderName.value = '';
+    if (singleCategory) singleCategory.selectedIndex = 0;
     if (singleSelectedFiles) singleSelectedFiles.innerHTML = '';
     
     // Reset album upload form
     const albumName = document.getElementById('album-name');
     const albumModelName = document.getElementById('album-model-name');
     const albumSenderName = document.getElementById('album-sender-name');
+    const albumCategory = document.getElementById('album-category');
     const albumDriveLink = document.getElementById('album-drive-link');
     const albumSelectedFiles = document.getElementById('album-selected-files');
     
     if (albumName) albumName.value = '';
     if (albumModelName) albumModelName.value = '';
     if (albumSenderName) albumSenderName.value = '';
+    if (albumCategory) albumCategory.selectedIndex = 0;
     if (albumDriveLink) albumDriveLink.value = '';
     if (albumSelectedFiles) albumSelectedFiles.innerHTML = '';
     
@@ -365,6 +387,7 @@ class UploadHandler {
     // Validate form
     const modelName = document.getElementById('single-model-name').value;
     const senderName = document.getElementById('single-sender-name').value;
+    const category = document.getElementById('single-category').value;
     
     if (!senderName) {
       showToast('Vui lòng nhập tên người gửi', 'error');
@@ -380,20 +403,21 @@ class UploadHandler {
     showLoading(true);
     
     try {
-      // Upload file to Google Drive
-      const file = this.selectedFiles[0];
-      const folderId = CONFIG.driveApi.folderIds.pending;
+      // Prepare data for Google Sheet
+      const data = {
+        modelName: modelName || 'Không có',
+        senderName: senderName,
+        category: category || 'Chưa phân loại',
+        fileName: this.selectedFiles[0].name,
+        fileSize: this.formatFileSize(this.selectedFiles[0].size),
+        timestamp: new Date().toISOString()
+      };
       
-      // For demo, we'll just simulate the upload
-      console.log('Uploading file:', file.name);
-      console.log('Model name:', modelName);
-      console.log('Sender name:', senderName);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Send to Google Sheet
+      await sheetsApi.sendToPendingSheet(data);
       
       // Show success message
-      showToast('Ảnh đã được tải lên thành công!');
+      showToast('Ảnh đã được gửi thành công!');
       
       // Hide modal
       this.hideModal();

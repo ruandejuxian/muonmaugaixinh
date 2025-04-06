@@ -8,7 +8,7 @@ async function loadDefaultImagesFromDrive() {
     const folderId = CONFIG.driveApi.folderIds.root;
     
     // Fetch images from Google Drive
-    const files = await driveApi.getFiles(folderId, 12, 0, 'newest');
+    const files = await driveApi.getFiles(folderId, 20, 0, 'newest');
     
     // Hide loading indicator
     showLoading(false);
@@ -57,6 +57,9 @@ async function renderImagesFromDriveUrl(driveUrl) {
     updateCategoryInfo(`Album từ Drive`);
     document.getElementById('category-description').textContent = `Ảnh từ thư mục Google Drive: ${driveUrl}`;
     
+    // Disable category navigation when viewing album from Drive
+    disableCategoryNavigation();
+    
     return files;
   } catch (error) {
     console.error('Error rendering images from Drive URL:', error);
@@ -64,6 +67,38 @@ async function renderImagesFromDriveUrl(driveUrl) {
     showLoading(false);
     return [];
   }
+}
+
+// Function to disable category navigation
+function disableCategoryNavigation() {
+  const categoryLinks = document.querySelectorAll('.sidebar-nav a');
+  categoryLinks.forEach(link => {
+    // Store original click handler
+    if (!link.dataset.originalClickHandler) {
+      const originalHandler = link.onclick;
+      link.dataset.originalClickHandler = 'stored';
+      link.onclick = (e) => {
+        e.preventDefault();
+        showToast('Đang xem album từ Drive. Vui lòng tải lại trang để xem danh mục khác.', 'info');
+      };
+    }
+  });
+}
+
+// Function to enable category navigation
+function enableCategoryNavigation() {
+  const categoryLinks = document.querySelectorAll('.sidebar-nav a');
+  categoryLinks.forEach(link => {
+    if (link.dataset.originalClickHandler) {
+      // Remove the dataset flag
+      delete link.dataset.originalClickHandler;
+      // Restore original functionality by removing the override
+      link.onclick = null;
+    }
+  });
+  
+  // Re-add event listeners
+  addEventListeners();
 }
 
 // Initialize the application with default images
@@ -88,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
             throw new Error('Invalid folder URL');
           }
           
-          const files = await driveApi.getFiles(folderId);
+          const files = await driveApi.getFiles(folderId, 50);
           
           // Hide loading indicator
           if (loadingIndicator) loadingIndicator.classList.remove('show');
@@ -135,8 +170,34 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+  
+  // Add event listener for the render album button
+  const renderAlbumButton = document.getElementById('render-album-button');
+  if (renderAlbumButton) {
+    renderAlbumButton.addEventListener('click', async function() {
+      const driveUrl = document.getElementById('album-drive-link').value.trim();
+      if (driveUrl && driveUrl.includes('drive.google.com')) {
+        try {
+          // Render images from the Drive URL
+          await renderImagesFromDriveUrl(driveUrl);
+          
+          // Hide the upload modal
+          if (window.uploadHandler) {
+            window.uploadHandler.hideModal();
+          }
+        } catch (error) {
+          console.error('Error rendering album:', error);
+          showToast('Không thể hiển thị album. Vui lòng thử lại sau.', 'error');
+        }
+      } else {
+        showToast('Vui lòng nhập đường dẫn Google Drive hợp lệ.', 'error');
+      }
+    });
+  }
 });
 
 // Export functions
 window.loadDefaultImagesFromDrive = loadDefaultImagesFromDrive;
 window.renderImagesFromDriveUrl = renderImagesFromDriveUrl;
+window.disableCategoryNavigation = disableCategoryNavigation;
+window.enableCategoryNavigation = enableCategoryNavigation;

@@ -6,14 +6,53 @@ class DriveAPI {
     this.discoveryDocs = CONFIG.driveApi.discoveryDocs;
     this.scopes = CONFIG.driveApi.scopes;
     this.folderIds = CONFIG.driveApi.folderIds;
+    this.isAuthenticated = false;
     this.isInitialized = false;
-    this.isAuthorized = false;
+    
+    // Initialize the API
+    this.init();
   }
-
-  // Initialize the API client
+  
+  // Initialize the API
   async init() {
-    if (this.isInitialized) return;
-
+    try {
+      // Load the Google API client library
+      await this.loadGapiClient();
+      
+      // Initialize the client
+      await this.initClient();
+      
+      // Set initialization flag
+      this.isInitialized = true;
+      
+      // Check if user is signed in
+      this.updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+      
+      // Listen for sign-in state changes
+      gapi.auth2.getAuthInstance().isSignedIn.listen(this.updateSigninStatus.bind(this));
+      
+      console.log('Google Drive API initialized successfully');
+    } catch (error) {
+      console.error('Error initializing Google Drive API:', error);
+      // Use demo data if API initialization fails
+      this.useDemoData();
+    }
+  }
+  
+  // Load the Google API client library
+  loadGapiClient() {
+    return new Promise((resolve, reject) => {
+      gapi.load('client:auth2', {
+        callback: resolve,
+        onerror: reject,
+        timeout: 5000,
+        ontimeout: reject
+      });
+    });
+  }
+  
+  // Initialize the client
+  async initClient() {
     try {
       await gapi.client.init({
         apiKey: this.apiKey,
@@ -21,237 +60,210 @@ class DriveAPI {
         discoveryDocs: this.discoveryDocs,
         scope: this.scopes
       });
-
-      // Listen for sign-in state changes
-      gapi.auth2.getAuthInstance().isSignedIn.listen(this.updateSigninStatus.bind(this));
-
-      // Handle the initial sign-in state
-      this.updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-
-      this.isInitialized = true;
-      console.log('Drive API initialized successfully');
     } catch (error) {
-      console.error('Error initializing Drive API:', error);
+      console.error('Error initializing client:', error);
       throw error;
     }
   }
-
+  
   // Update sign-in status
   updateSigninStatus(isSignedIn) {
-    this.isAuthorized = isSignedIn;
-    console.log('Drive API auth status:', isSignedIn ? 'Signed in' : 'Signed out');
+    this.isAuthenticated = isSignedIn;
+    console.log('User is signed in:', isSignedIn);
+    
+    // Update UI based on sign-in status
+    const authButton = document.getElementById('auth-button');
+    if (authButton) {
+      if (isSignedIn) {
+        authButton.textContent = 'Đăng xuất';
+      } else {
+        authButton.textContent = 'Đăng nhập với Google';
+      }
+    }
   }
-
+  
   // Sign in the user
   signIn() {
     if (!this.isInitialized) {
-      console.error('Drive API not initialized');
-      return;
+      console.error('API not initialized');
+      return Promise.reject('API not initialized');
     }
-
+    
     return gapi.auth2.getAuthInstance().signIn();
   }
-
+  
   // Sign out the user
   signOut() {
     if (!this.isInitialized) {
-      console.error('Drive API not initialized');
-      return;
+      console.error('API not initialized');
+      return Promise.reject('API not initialized');
     }
-
+    
     return gapi.auth2.getAuthInstance().signOut();
   }
-
+  
   // Get files from a folder
-  async getFiles(folderId, pageSize = 20, pageToken = null, sortOrder = 'newest') {
+  async getFiles(folderId, limit = 50, offset = 0, sortBy = 'name') {
     try {
-      // Ensure API is initialized
       if (!this.isInitialized) {
-        await this.init();
+        console.warn('API not initialized, using demo data');
+        return this.getDemoFiles(folderId, limit, offset, sortBy);
       }
-
-      // For demo purposes, return sample images if API fails
-      if (!this.isAuthorized || window.location.hostname === 'ruandejuxian.github.io') {
-        console.log('Using sample images for demo');
-        return this.getSampleImages(folderId);
-      }
-
+      
       // Build query
-      let query = `'${folderId}' in parents and mimeType contains 'image/'`;
-      let orderBy = 'modifiedTime desc'; // Default to newest
-
-      // Set sort order
-      switch (sortOrder) {
+      let query = `'${folderId}' in parents and trashed = false and mimeType contains 'image/'`;
+      
+      // Build sort order
+      let orderBy = '';
+      switch (sortBy) {
+        case 'newest':
+          orderBy = 'modifiedTime desc';
+          break;
         case 'oldest':
           orderBy = 'modifiedTime asc';
           break;
-        case 'name_asc':
+        case 'name':
           orderBy = 'name asc';
           break;
         case 'name_desc':
           orderBy = 'name desc';
           break;
+        default:
+          orderBy = 'modifiedTime desc';
       }
-
+      
       // Execute the request
       const response = await gapi.client.drive.files.list({
         q: query,
-        pageSize: pageSize,
-        pageToken: pageToken,
-        orderBy: orderBy,
-        fields: 'nextPageToken, files(id, name, mimeType, thumbnailLink, webContentLink, modifiedTime)'
+        pageSize: limit,
+        pageToken: offset > 0 ? this.getPageToken(offset) : null,
+        fields: 'files(id, name, mimeType, thumbnailLink, webContentLink, webViewLink, createdTime, modifiedTime)',
+        orderBy: orderBy
       });
-
-      return response.result.files;
+      
+      // Process the response
+      const files = response.result.files;
+      
+      if (files && files.length > 0) {
+        return files.map(file => ({
+          id: file.id,
+          name: file.name,
+          mimeType: file.mimeType,
+          thumbnailLink: file.thumbnailLink,
+          webContentLink: file.webContentLink,
+          webViewLink: file.webViewLink,
+          createdTime: file.createdTime,
+          modifiedTime: file.modifiedTime,
+          viewCount: Math.floor(Math.random() * 1000),
+          likeCount: Math.floor(Math.random() * 100)
+        }));
+      } else {
+        console.log('No files found in folder:', folderId);
+        return [];
+      }
     } catch (error) {
-      console.error('Error getting files from Drive:', error);
-      // Return sample images as fallback
-      return this.getSampleImages(folderId);
+      console.error('Error getting files:', error);
+      return this.getDemoFiles(folderId, limit, offset, sortBy);
     }
   }
-
-  // Get sample images for demo
-  getSampleImages(folderId) {
-    // Map folder ID to category
-    let category = 'all';
-    Object.keys(this.folderIds).forEach(key => {
-      if (this.folderIds[key] === folderId) {
-        category = key;
-      }
-    });
-
-    // Get sample images from demo-fixes.js
-    if (category === 'root' || category === 'all') {
-      // Combine all categories
-      let allImages = [];
-      Object.keys(SAMPLE_IMAGES).forEach(cat => {
-        allImages = allImages.concat(SAMPLE_IMAGES[cat]);
-      });
-      return allImages.map(img => this.convertSampleToFileFormat(img));
-    } else if (SAMPLE_IMAGES[category]) {
-      // Return specific category
-      return SAMPLE_IMAGES[category].map(img => this.convertSampleToFileFormat(img));
-    } else {
-      // Default empty array
-      return [];
-    }
+  
+  // Get page token for pagination
+  getPageToken(offset) {
+    // This is a simplified implementation
+    // In a real implementation, you would need to store and manage page tokens
+    return null;
   }
-
-  // Convert sample image to Drive API file format
-  convertSampleToFileFormat(sampleImage) {
-    return {
-      id: sampleImage.id,
-      name: sampleImage.title,
-      mimeType: 'image/jpeg',
-      thumbnailLink: sampleImage.url,
-      webContentLink: sampleImage.url,
-      modifiedTime: new Date().toISOString(),
-      viewCount: sampleImage.views || 0,
-      likeCount: sampleImage.likes || 0
-    };
-  }
-
-  // Search for files
-  async searchFiles(query, pageSize = 20, pageToken = null) {
+  
+  // Search files
+  async searchFiles(query, limit = 50) {
     try {
-      // Ensure API is initialized
       if (!this.isInitialized) {
-        await this.init();
+        console.warn('API not initialized, using demo data');
+        return this.getDemoFiles(null, limit, 0, 'name', query);
       }
-
-      // For demo purposes, return sample images if API fails
-      if (!this.isAuthorized || window.location.hostname === 'ruandejuxian.github.io') {
-        console.log('Using sample images for search');
-        return this.searchSampleImages(query);
-      }
-
+      
       // Build query
-      let searchQuery = `name contains '${query}' and mimeType contains 'image/' and (`;
+      let searchQuery = `mimeType contains 'image/' and trashed = false and name contains '${query}'`;
       
-      // Add folder constraints
-      const folderKeys = Object.keys(this.folderIds);
-      folderKeys.forEach((key, index) => {
-        if (key !== 'pending') { // Exclude pending folder
-          searchQuery += `'${this.folderIds[key]}' in parents`;
-          if (index < folderKeys.length - 2) { // -2 because we're excluding 'pending'
-            searchQuery += ' or ';
-          }
-        }
-      });
-      
-      searchQuery += ')';
-
       // Execute the request
       const response = await gapi.client.drive.files.list({
         q: searchQuery,
-        pageSize: pageSize,
-        pageToken: pageToken,
-        orderBy: 'modifiedTime desc',
-        fields: 'nextPageToken, files(id, name, mimeType, thumbnailLink, webContentLink, modifiedTime)'
+        pageSize: limit,
+        fields: 'files(id, name, mimeType, thumbnailLink, webContentLink, webViewLink, createdTime, modifiedTime)',
+        orderBy: 'modifiedTime desc'
       });
-
-      return response.result.files;
+      
+      // Process the response
+      const files = response.result.files;
+      
+      if (files && files.length > 0) {
+        return files.map(file => ({
+          id: file.id,
+          name: file.name,
+          mimeType: file.mimeType,
+          thumbnailLink: file.thumbnailLink,
+          webContentLink: file.webContentLink,
+          webViewLink: file.webViewLink,
+          createdTime: file.createdTime,
+          modifiedTime: file.modifiedTime,
+          viewCount: Math.floor(Math.random() * 1000),
+          likeCount: Math.floor(Math.random() * 100)
+        }));
+      } else {
+        console.log('No files found for query:', query);
+        return [];
+      }
     } catch (error) {
-      console.error('Error searching files in Drive:', error);
-      // Return sample search results as fallback
-      return this.searchSampleImages(query);
+      console.error('Error searching files:', error);
+      return this.getDemoFiles(null, limit, 0, 'name', query);
     }
   }
-
-  // Search sample images for demo
-  searchSampleImages(query) {
-    query = query.toLowerCase();
-    let results = [];
-    
-    // Search through all sample images
-    Object.keys(SAMPLE_IMAGES).forEach(category => {
-      SAMPLE_IMAGES[category].forEach(img => {
-        if (img.title.toLowerCase().includes(query)) {
-          results.push(this.convertSampleToFileFormat(img));
-        }
-      });
-    });
-    
-    return results;
-  }
-
-  // Get files from a folder by URL
-  async getFilesByFolderUrl(folderUrl, pageSize = 20) {
+  
+  // Get file details
+  async getFileDetails(fileId) {
     try {
-      // Extract folder ID from URL
-      const folderId = this.extractFolderId(folderUrl);
-      
-      if (!folderId) {
-        throw new Error('Invalid folder URL');
+      if (!this.isInitialized) {
+        console.warn('API not initialized, using demo data');
+        return this.getDemoFileDetails(fileId);
       }
       
-      // Get files from the folder
-      return await this.getFiles(folderId, pageSize);
+      // Execute the request
+      const response = await gapi.client.drive.files.get({
+        fileId: fileId,
+        fields: 'id, name, mimeType, thumbnailLink, webContentLink, webViewLink, createdTime, modifiedTime'
+      });
+      
+      // Process the response
+      const file = response.result;
+      
+      return {
+        id: file.id,
+        name: file.name,
+        mimeType: file.mimeType,
+        thumbnailLink: file.thumbnailLink,
+        webContentLink: file.webContentLink,
+        webViewLink: file.webViewLink,
+        createdTime: file.createdTime,
+        modifiedTime: file.modifiedTime,
+        viewCount: Math.floor(Math.random() * 1000),
+        likeCount: Math.floor(Math.random() * 100)
+      };
     } catch (error) {
-      console.error('Error getting files by folder URL:', error);
-      throw error;
+      console.error('Error getting file details:', error);
+      return this.getDemoFileDetails(fileId);
     }
   }
-
-  // Extract folder ID from Google Drive URL
+  
+  // Extract folder ID from URL
   extractFolderId(url) {
     try {
-      const urlObj = new URL(url);
-      
-      // Check if it's a folders link
-      if (urlObj.pathname.includes('/folders/')) {
-        const pathParts = urlObj.pathname.split('/');
-        const folderIdIndex = pathParts.indexOf('folders') + 1;
-        
-        if (folderIdIndex < pathParts.length) {
-          return pathParts[folderIdIndex];
-        }
-      }
-      
-      // Check if it's a file link with id parameter
-      const fileId = urlObj.searchParams.get('id');
-      if (fileId) {
-        return fileId;
+      // Handle different URL formats
+      if (url.includes('folders/')) {
+        const match = url.match(/folders\/([^/?]+)/);
+        return match ? match[1] : null;
+      } else if (url.includes('id=')) {
+        const match = url.match(/id=([^&]+)/);
+        return match ? match[1] : null;
       }
       
       return null;
@@ -260,137 +272,96 @@ class DriveAPI {
       return null;
     }
   }
-
-  // Upload a file to Drive
-  async uploadFile(file, folderId, metadata = {}) {
-    try {
-      // Ensure API is initialized and user is authorized
-      if (!this.isInitialized) {
-        await this.init();
-      }
-
-      if (!this.isAuthorized) {
-        await this.signIn();
-      }
-
-      // Create file metadata
-      const fileMetadata = {
-        name: metadata.name || file.name,
-        mimeType: file.type,
-        parents: [folderId]
-      };
-
-      // Create a new multipart request
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(fileMetadata)], { type: 'application/json' }));
-      form.append('file', file);
-
-      // Execute the upload
-      const accessToken = gapi.auth.getToken().access_token;
-      const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: form
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Error uploading file to Drive:', error);
-      throw error;
-    }
+  
+  // Use demo data if API fails
+  useDemoData() {
+    console.log('Using demo data');
+    this.isInitialized = true;
+    this.isAuthenticated = true;
   }
-
-  // Get file by ID
-  async getFile(fileId) {
-    try {
-      // Ensure API is initialized
-      if (!this.isInitialized) {
-        await this.init();
-      }
-
-      // For demo purposes, return sample image if API fails
-      if (!this.isAuthorized || window.location.hostname === 'ruandejuxian.github.io') {
-        return this.getSampleFileById(fileId);
-      }
-
-      // Execute the request
-      const response = await gapi.client.drive.files.get({
-        fileId: fileId,
-        fields: 'id, name, mimeType, thumbnailLink, webContentLink, webViewLink, modifiedTime'
-      });
-
-      return response.result;
-    } catch (error) {
-      console.error('Error getting file from Drive:', error);
-      // Return sample file as fallback
-      return this.getSampleFileById(fileId);
+  
+  // Get demo files
+  getDemoFiles(folderId, limit = 50, offset = 0, sortBy = 'name', searchQuery = null) {
+    // Create demo files based on folder ID or search query
+    const demoFiles = [];
+    
+    // Determine which demo files to return based on folder ID
+    let category = 'all';
+    if (folderId === this.folderIds.western) {
+      category = 'western';
+    } else if (folderId === this.folderIds.asian) {
+      category = 'asian';
+    } else if (folderId === this.folderIds.vietnam) {
+      category = 'vietnam';
+    } else if (folderId === this.folderIds.other) {
+      category = 'other';
     }
+    
+    // Generate demo files
+    for (let i = 1; i <= limit; i++) {
+      const index = offset + i;
+      let name = `${category}_${index}.jpg`;
+      
+      // Filter by search query if provided
+      if (searchQuery && !name.includes(searchQuery)) {
+        continue;
+      }
+      
+      demoFiles.push({
+        id: `${category}_${index}`,
+        name: name,
+        mimeType: 'image/jpeg',
+        thumbnailLink: `https://via.placeholder.com/150?text=${name}`,
+        webContentLink: `https://via.placeholder.com/800x600?text=${name}`,
+        webViewLink: `https://via.placeholder.com/800x600?text=${name}`,
+        createdTime: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
+        modifiedTime: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
+        viewCount: Math.floor(Math.random() * 1000),
+        likeCount: Math.floor(Math.random() * 100)
+      });
+    }
+    
+    // Sort the files
+    switch (sortBy) {
+      case 'newest':
+        demoFiles.sort((a, b) => new Date(b.modifiedTime) - new Date(a.modifiedTime));
+        break;
+      case 'oldest':
+        demoFiles.sort((a, b) => new Date(a.modifiedTime) - new Date(b.modifiedTime));
+        break;
+      case 'name':
+        demoFiles.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'name_desc':
+        demoFiles.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+    }
+    
+    return demoFiles;
   }
-
-  // Get sample file by ID for demo
-  getSampleFileById(fileId) {
-    let foundImage = null;
+  
+  // Get demo file details
+  getDemoFileDetails(fileId) {
+    // Extract category and index from file ID
+    const parts = fileId.split('_');
+    const category = parts[0];
+    const index = parts[1];
     
-    // Search through all sample images
-    Object.keys(SAMPLE_IMAGES).forEach(category => {
-      SAMPLE_IMAGES[category].forEach(img => {
-        if (img.id === fileId) {
-          foundImage = img;
-        }
-      });
-    });
-    
-    if (foundImage) {
-      return this.convertSampleToFileFormat(foundImage);
-    }
-    
-    // Default fallback
     return {
       id: fileId,
-      name: 'Sample Image',
+      name: `${category}_${index}.jpg`,
       mimeType: 'image/jpeg',
-      thumbnailLink: PLACEHOLDER_IMAGE,
-      webContentLink: PLACEHOLDER_IMAGE,
-      webViewLink: PLACEHOLDER_IMAGE,
-      modifiedTime: new Date().toISOString()
+      thumbnailLink: `https://via.placeholder.com/150?text=${category}_${index}`,
+      webContentLink: `https://via.placeholder.com/800x600?text=${category}_${index}`,
+      webViewLink: `https://via.placeholder.com/800x600?text=${category}_${index}`,
+      createdTime: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
+      modifiedTime: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
+      viewCount: Math.floor(Math.random() * 1000),
+      likeCount: Math.floor(Math.random() * 100)
     };
   }
 }
 
 // Create and export Drive API instance
 const driveApi = new DriveAPI();
-
-// Load the Google API client library
-function loadGapiClient() {
-  return new Promise((resolve, reject) => {
-    gapi.load('client:auth2', {
-      callback: resolve,
-      onerror: reject,
-      timeout: 5000,
-      ontimeout: reject
-    });
-  });
-}
-
-// Initialize Drive API when page loads
-document.addEventListener('DOMContentLoaded', async function() {
-  try {
-    // Check if gapi is available
-    if (typeof gapi !== 'undefined') {
-      await loadGapiClient();
-      await driveApi.init();
-      console.log('Drive API initialized successfully');
-    } else {
-      console.warn('Google API client library not loaded');
-    }
-  } catch (error) {
-    console.error('Error initializing Drive API:', error);
-  }
-});
+window.driveApi = driveApi;
