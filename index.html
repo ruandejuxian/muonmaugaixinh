@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VNGirls - Thư viện ảnh</title>
+    <meta name="description" content="Thư viện ảnh người mẫu Việt Nam, Châu Á, Âu Mỹ">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="images/favicon.ico" type="image/x-icon">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/footer.css">
+    <link rel="stylesheet" href="css/album.css">
+    <link rel="stylesheet" href="css/fixes.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <h1>VN<span>Girls</span></h1>
+        </div>
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Tìm kiếm ảnh...">
+            <button id="search-button"><i class="fas fa-search"></i></button>
+        </div>
+        <div class="header-actions">
+            <button id="upload-button" class="btn btn-primary">
+                <i class="fas fa-upload"></i> Gửi ảnh
+            </button>
+        </div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Danh mục</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="active">
+                        <a href="#" data-category="all">
+                            <i class="fas fa-images"></i> Tất cả ảnh
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-category="vietnam">
+                            <i class="fas fa-flag"></i> Gái Việt
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-category="western">
+                            <i class="fas fa-globe-americas"></i> Gái Âu Mỹ
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-category="asian">
+                            <i class="fas fa-globe-asia"></i> Gái Châu Á
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-category="other">
+                            <i class="fas fa-ellipsis-h"></i> Nơi Khác
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="sidebar-actions">
+                <button id="copy-button" class="btn btn-outline">
+                    <i class="fas fa-copy"></i> Sao chép danh sách
+                </button>
+                <button id="sheet-button" class="btn btn-outline">
+                    <i class="fas fa-file-excel"></i> Gửi đến Sheet
+                </button>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main id="main-content">
+            <div class="category-header">
+                <div>
+                    <h2 id="category-title">Tất cả ảnh</h2>
+                    <p id="category-description">Bộ sưu tập tất cả các ảnh</p>
+                </div>
+                <div class="sort-container">
+                    <label for="sort-select">Sắp xếp:</label>
+                    <select id="sort-select">
+                        <option value="newest">Mới nhất</option>
+                        <option value="oldest">Cũ nhất</option>
+                        <option value="name_asc">Tên A-Z</option>
+                        <option value="name_desc">Tên Z-A</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Loading Indicator -->
+            <div id="loading-indicator">
+                <div class="spinner"></div>
+                <p>Đang tải...</p>
+            </div>
+            
+            <!-- Error Container -->
+            <div id="error-container"></div>
+            
+            <!-- Image Grid -->
+            <div id="image-grid" class="image-grid">
+                <!-- Images will be loaded here -->
+            </div>
+            
+            <!-- Load More Button -->
+            <button id="load-more-button" class="btn btn-secondary">Tải thêm ảnh</button>
+        </main>
+    </div>
+    
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-section">
+                <h3>Về VNGirls</h3>
+                <p>VNGirls là nền tảng chia sẻ và lưu trữ ảnh người mẫu từ nhiều quốc gia khác nhau. Chúng tôi cung cấp các tính năng đơn giản và tiện lợi để bạn có thể dễ dàng tìm kiếm, lưu trữ và chia sẻ những bức ảnh yêu thích.</p>
+            </div>
+            <div class="footer-section">
+                <h3>Liên hệ</h3>
+                <p>Nếu bạn có bất kỳ câu hỏi hoặc góp ý nào, vui lòng liên hệ với chúng tôi qua email hoặc mạng xã hội.</p>
+                <div class="social-icons">
+                    <a href="#"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-instagram"></i></a>
+                    <a href="#"><i class="fab fa-telegram"></i></a>
+                </div>
+            </div>
+            <div class="footer-section">
+                <h3>Chính sách</h3>
+                <p>Tất cả hình ảnh trên trang web đều được sưu tầm từ Internet và thuộc về chủ sở hữu gốc. Nếu bạn là chủ sở hữu của bất kỳ hình ảnh nào và muốn chúng tôi gỡ bỏ, vui lòng liên hệ với chúng tôi.</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 VNGirls. Tất cả các quyền được bảo lưu.</p>
+        </div>
+    </footer>
+    
+    <!-- Back to Top Button -->
+    <div class="back-to-top">
+        <i class="fas fa-arrow-up"></i>
+    </div>
+    
+    <!-- Google API -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    
+    <!-- JavaScript -->
+    <script src="js/config.js"></script>
+    <script src="js/model-info.js"></script>
+    <script src="js/drive-api.js"></script>
+    <script src="js/sheets-api.js"></script>
+    <script src="js/image-viewer.js"></script>
+    <script src="js/upload.js"></script>
+    <script src="js/album-upload.js"></script>
+    <script src="js/demo-fixes.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
