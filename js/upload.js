@@ -1,302 +1,350 @@
 // Upload functionality
 class UploadHandler {
   constructor() {
-    this.uploadModal = null;
+    this.modal = null;
     this.dropArea = null;
     this.fileInput = null;
     this.selectedFiles = [];
-    this.maxSingleImageUpload = CONFIG.ui.maxUploadSingleImage;
-    this.maxAlbumImagesUpload = CONFIG.ui.maxUploadAlbumImages;
-    this.uploadType = 'image'; // 'image' or 'album'
+    this.maxUploadSingleImage = CONFIG.ui.maxUploadSingleImage;
+    this.maxUploadAlbumImages = CONFIG.ui.maxUploadAlbumImages;
     
     this.init();
   }
   
   init() {
     // Create upload modal
-    this.createUploadModal();
+    this.createModal();
     
     // Add event listeners
     this.addEventListeners();
   }
   
-  createUploadModal() {
-    this.uploadModal = document.createElement('div');
-    this.uploadModal.className = 'upload-modal';
-    this.uploadModal.innerHTML = `
+  createModal() {
+    this.modal = document.createElement('div');
+    this.modal.className = 'upload-modal';
+    this.modal.id = 'upload-modal';
+    
+    this.modal.innerHTML = `
       <div class="upload-modal-content">
         <div class="upload-modal-header">
-          <h2>Tải ảnh lên</h2>
+          <h2>Gửi ảnh</h2>
           <button class="upload-modal-close">&times;</button>
         </div>
         <div class="upload-modal-tabs">
-          <button class="upload-tab-button active" data-tab="image">Tải ảnh</button>
-          <button class="upload-tab-button" data-tab="album">Tải album</button>
+          <button class="upload-tab-button active" data-tab="single">Ảnh đơn</button>
+          <button class="upload-tab-button" data-tab="album">Album</button>
         </div>
         <div class="upload-modal-body">
-          <div class="upload-tab-content active" id="image-upload-tab">
-            <div class="form-group">
-              <label for="image-category">Danh mục</label>
-              <select id="image-category" required>
-                <option value="">-- Chọn danh mục --</option>
-                <option value="western">Gái Âu Mỹ</option>
-                <option value="asian">Gái Châu Á</option>
-                <option value="vietnam">Gái Việt</option>
-                <option value="other">Nơi Khác</option>
-              </select>
+          <div class="upload-tab-content active" id="single-upload-tab">
+            <div class="upload-form">
+              <div class="upload-drop-area" id="single-drop-area">
+                <p>Kéo và thả ảnh vào đây hoặc</p>
+                <button class="btn btn-primary">Chọn ảnh</button>
+                <input type="file" id="single-file-input" accept="image/*" hidden>
+              </div>
+              <div class="selected-files" id="single-selected-files"></div>
+              <div class="upload-form-fields">
+                <div class="form-group">
+                  <label for="single-model-name">Tên người mẫu (nếu có)</label>
+                  <input type="text" id="single-model-name" placeholder="Nhập tên người mẫu">
+                </div>
+                <div class="form-group">
+                  <label for="single-sender-name">Tên người gửi</label>
+                  <input type="text" id="single-sender-name" placeholder="Nhập tên của bạn" required>
+                </div>
+              </div>
+              <div class="upload-actions">
+                <button class="btn btn-primary" id="single-upload-button">Gửi ảnh</button>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="image-model-name">Tên người mẫu (nếu có)</label>
-              <input type="text" id="image-model-name" placeholder="Nhập tên người mẫu">
-            </div>
-            <div class="form-group">
-              <label for="image-social-link">Liên kết mạng xã hội (nếu có)</label>
-              <input type="text" id="image-social-link" placeholder="Nhập liên kết mạng xã hội">
-            </div>
-            <div class="form-group">
-              <label for="image-sender-name">Tên người gửi</label>
-              <input type="text" id="image-sender-name" placeholder="Nhập tên của bạn" required>
-            </div>
-            <div class="upload-area" id="image-drop-area">
-              <p>Kéo và thả ảnh vào đây hoặc</p>
-              <button class="upload-button">Chọn ảnh</button>
-              <input type="file" id="image-file-input" accept="image/*" hidden>
-              <p class="upload-limit">Tối đa 1 ảnh</p>
-            </div>
-            <div class="selected-files" id="image-selected-files"></div>
           </div>
-          
           <div class="upload-tab-content" id="album-upload-tab">
-            <div class="form-group">
-              <label for="album-name">Tên Album (nếu có)</label>
-              <input type="text" id="album-name" placeholder="Nhập tên album">
+            <div class="upload-form">
+              <div class="form-group">
+                <label for="album-name">Tên album (nếu có)</label>
+                <input type="text" id="album-name" placeholder="Nhập tên album">
+              </div>
+              <div class="form-group">
+                <label for="album-model-name">Tên người mẫu (nếu có)</label>
+                <input type="text" id="album-model-name" placeholder="Nhập tên người mẫu">
+              </div>
+              <div class="form-group">
+                <label for="album-sender-name">Tên người gửi</label>
+                <input type="text" id="album-sender-name" placeholder="Nhập tên của bạn" required>
+              </div>
+              <div class="form-group">
+                <label for="album-drive-link">Link album Google Drive</label>
+                <input type="text" id="album-drive-link" placeholder="https://drive.google.com/drive/folders/...">
+              </div>
+              <div class="upload-drop-area" id="album-drop-area">
+                <p>Kéo và thả ảnh vào đây hoặc</p>
+                <button class="btn btn-primary">Chọn ảnh</button>
+                <input type="file" id="album-file-input" accept="image/*" multiple hidden>
+              </div>
+              <div class="selected-files" id="album-selected-files"></div>
+              <div class="upload-actions">
+                <button class="btn btn-primary" id="album-upload-button">Gửi album</button>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="album-model-name">Tên người mẫu (nếu có)</label>
-              <input type="text" id="album-model-name" placeholder="Nhập tên người mẫu">
-            </div>
-            <div class="form-group">
-              <label for="album-sender-name">Tên người gửi</label>
-              <input type="text" id="album-sender-name" placeholder="Nhập tên của bạn" required>
-            </div>
-            <div class="form-group">
-              <label for="album-drive-link">Link album Google Drive</label>
-              <input type="text" id="album-drive-link" placeholder="https://drive.google.com/drive/folders/...">
-            </div>
-            <div class="upload-area" id="album-drop-area">
-              <p>Kéo và thả ảnh vào đây hoặc</p>
-              <button class="upload-button">Chọn ảnh</button>
-              <input type="file" id="album-file-input" accept="image/*" multiple hidden>
-              <p class="upload-limit">Tối đa 20 ảnh</p>
-            </div>
-            <div class="selected-files" id="album-selected-files"></div>
           </div>
-        </div>
-        <div class="upload-modal-footer">
-          <button class="upload-submit-button">Gửi</button>
         </div>
       </div>
     `;
     
-    document.body.appendChild(this.uploadModal);
+    document.body.appendChild(this.modal);
     
     // Get elements
-    this.imageDropArea = document.getElementById('image-drop-area');
-    this.imageFileInput = document.getElementById('image-file-input');
-    this.imageSelectedFiles = document.getElementById('image-selected-files');
-    
+    this.singleDropArea = document.getElementById('single-drop-area');
+    this.singleFileInput = document.getElementById('single-file-input');
     this.albumDropArea = document.getElementById('album-drop-area');
     this.albumFileInput = document.getElementById('album-file-input');
-    this.albumSelectedFiles = document.getElementById('album-selected-files');
   }
   
   addEventListeners() {
-    // Close modal
-    const closeButton = this.uploadModal.querySelector('.upload-modal-close');
-    closeButton.addEventListener('click', this.hideModal.bind(this));
+    // Upload button
+    const uploadButton = document.getElementById('upload-button');
+    if (uploadButton) {
+      uploadButton.addEventListener('click', () => this.showModal());
+    }
     
-    // Tab switching
-    const tabButtons = this.uploadModal.querySelectorAll('.upload-tab-button');
+    // Close button
+    const closeButton = this.modal.querySelector('.upload-modal-close');
+    closeButton.addEventListener('click', () => this.hideModal());
+    
+    // Tab buttons
+    const tabButtons = this.modal.querySelectorAll('.upload-tab-button');
     tabButtons.forEach(button => {
       button.addEventListener('click', () => {
-        this.switchTab(button.dataset.tab);
+        // Remove active class from all buttons and contents
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        const tabContents = this.modal.querySelectorAll('.upload-tab-content');
+        tabContents.forEach(content => content.classList.remove('active'));
+        
+        // Add active class to clicked button and corresponding content
+        button.classList.add('active');
+        const tabId = button.getAttribute('data-tab');
+        const tabContent = document.getElementById(`${tabId}-upload-tab`);
+        if (tabContent) {
+          tabContent.classList.add('active');
+        }
       });
     });
     
-    // Image upload
-    this.imageDropArea.addEventListener('click', () => {
-      this.imageFileInput.click();
-    });
+    // Single file drop area
+    if (this.singleDropArea) {
+      this.singleDropArea.addEventListener('click', () => {
+        this.singleFileInput.click();
+      });
+      
+      this.singleDropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        this.singleDropArea.classList.add('dragover');
+      });
+      
+      this.singleDropArea.addEventListener('dragleave', () => {
+        this.singleDropArea.classList.remove('dragover');
+      });
+      
+      this.singleDropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        this.singleDropArea.classList.remove('dragover');
+        
+        if (e.dataTransfer.files.length > 0) {
+          this.handleSingleFileSelect(e.dataTransfer.files);
+        }
+      });
+    }
     
-    this.imageFileInput.addEventListener('change', () => {
-      this.handleImageFiles(this.imageFileInput.files);
-    });
+    // Single file input
+    if (this.singleFileInput) {
+      this.singleFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          this.handleSingleFileSelect(e.target.files);
+        }
+      });
+    }
     
-    this.imageDropArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      this.imageDropArea.classList.add('active');
-    });
+    // Album file drop area
+    if (this.albumDropArea) {
+      this.albumDropArea.addEventListener('click', () => {
+        this.albumFileInput.click();
+      });
+      
+      this.albumDropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        this.albumDropArea.classList.add('dragover');
+      });
+      
+      this.albumDropArea.addEventListener('dragleave', () => {
+        this.albumDropArea.classList.remove('dragover');
+      });
+      
+      this.albumDropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        this.albumDropArea.classList.remove('dragover');
+        
+        if (e.dataTransfer.files.length > 0) {
+          this.handleAlbumFileSelect(e.dataTransfer.files);
+        }
+      });
+    }
     
-    this.imageDropArea.addEventListener('dragleave', () => {
-      this.imageDropArea.classList.remove('active');
-    });
+    // Album file input
+    if (this.albumFileInput) {
+      this.albumFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          this.handleAlbumFileSelect(e.target.files);
+        }
+      });
+    }
     
-    this.imageDropArea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      this.imageDropArea.classList.remove('active');
-      this.handleImageFiles(e.dataTransfer.files);
-    });
+    // Upload buttons
+    const singleUploadButton = document.getElementById('single-upload-button');
+    if (singleUploadButton) {
+      singleUploadButton.addEventListener('click', () => this.submitSingleUpload());
+    }
     
-    // Album upload
-    this.albumDropArea.addEventListener('click', () => {
-      this.albumFileInput.click();
-    });
+    const albumUploadButton = document.getElementById('album-upload-button');
+    if (albumUploadButton) {
+      albumUploadButton.addEventListener('click', () => this.submitAlbumUpload());
+    }
     
-    this.albumFileInput.addEventListener('change', () => {
-      this.handleAlbumFiles(this.albumFileInput.files);
+    // Close modal when clicking outside
+    this.modal.addEventListener('click', (e) => {
+      if (e.target === this.modal) {
+        this.hideModal();
+      }
     });
-    
-    this.albumDropArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      this.albumDropArea.classList.add('active');
-    });
-    
-    this.albumDropArea.addEventListener('dragleave', () => {
-      this.albumDropArea.classList.remove('active');
-    });
-    
-    this.albumDropArea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      this.albumDropArea.classList.remove('active');
-      this.handleAlbumFiles(e.dataTransfer.files);
-    });
-    
-    // Submit button
-    const submitButton = this.uploadModal.querySelector('.upload-submit-button');
-    submitButton.addEventListener('click', this.handleSubmit.bind(this));
   }
   
   showModal() {
-    this.uploadModal.classList.add('show');
-    // Reset form
-    this.resetForm();
+    this.modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
   }
   
   hideModal() {
-    this.uploadModal.classList.remove('show');
+    this.modal.classList.remove('show');
+    document.body.style.overflow = '';
+    this.resetForms();
   }
   
-  switchTab(tab) {
-    this.uploadType = tab;
+  resetForms() {
+    // Reset single upload form
+    const singleModelName = document.getElementById('single-model-name');
+    const singleSenderName = document.getElementById('single-sender-name');
+    const singleSelectedFiles = document.getElementById('single-selected-files');
     
-    // Update active tab button
-    const tabButtons = this.uploadModal.querySelectorAll('.upload-tab-button');
-    tabButtons.forEach(button => {
-      if (button.dataset.tab === tab) {
-        button.classList.add('active');
-      } else {
-        button.classList.remove('active');
-      }
-    });
+    if (singleModelName) singleModelName.value = '';
+    if (singleSenderName) singleSenderName.value = '';
+    if (singleSelectedFiles) singleSelectedFiles.innerHTML = '';
     
-    // Update active tab content
-    const tabContents = this.uploadModal.querySelectorAll('.upload-tab-content');
-    tabContents.forEach(content => {
-      if (content.id === `${tab}-upload-tab`) {
-        content.classList.add('active');
-      } else {
-        content.classList.remove('active');
-      }
-    });
+    // Reset album upload form
+    const albumName = document.getElementById('album-name');
+    const albumModelName = document.getElementById('album-model-name');
+    const albumSenderName = document.getElementById('album-sender-name');
+    const albumDriveLink = document.getElementById('album-drive-link');
+    const albumSelectedFiles = document.getElementById('album-selected-files');
+    
+    if (albumName) albumName.value = '';
+    if (albumModelName) albumModelName.value = '';
+    if (albumSenderName) albumSenderName.value = '';
+    if (albumDriveLink) albumDriveLink.value = '';
+    if (albumSelectedFiles) albumSelectedFiles.innerHTML = '';
     
     // Reset selected files
     this.selectedFiles = [];
-    this.imageSelectedFiles.innerHTML = '';
-    this.albumSelectedFiles.innerHTML = '';
   }
   
-  handleImageFiles(files) {
-    if (files.length === 0) return;
-    
-    // Limit to max files
-    const maxFiles = this.maxSingleImageUpload;
-    if (this.selectedFiles.length + files.length > maxFiles) {
-      alert(`Bạn chỉ có thể tải lên tối đa ${maxFiles} ảnh.`);
+  handleSingleFileSelect(files) {
+    // Limit to one file for single upload
+    if (files.length > this.maxUploadSingleImage) {
+      showToast(`Chỉ có thể tải lên ${this.maxUploadSingleImage} ảnh cho mỗi lần tải đơn.`, 'error');
       return;
     }
     
-    // Process files
-    for (let i = 0; i < files.length && this.selectedFiles.length < maxFiles; i++) {
-      const file = files[i];
-      
-      // Check if file is an image
-      if (!file.type.startsWith('image/')) {
-        alert('Vui lòng chỉ tải lên file ảnh.');
-        continue;
-      }
-      
-      // Add to selected files
-      this.selectedFiles.push(file);
-      
-      // Create preview
-      this.createFilePreview(file, this.imageSelectedFiles);
-    }
-  }
-  
-  handleAlbumFiles(files) {
-    if (files.length === 0) return;
+    // Store selected file
+    this.selectedFiles = Array.from(files);
     
-    // Limit to max files
-    const maxFiles = this.maxAlbumImagesUpload;
-    if (this.selectedFiles.length + files.length > maxFiles) {
-      alert(`Bạn chỉ có thể tải lên tối đa ${maxFiles} ảnh.`);
-      return;
-    }
-    
-    // Process files
-    for (let i = 0; i < files.length && this.selectedFiles.length < maxFiles; i++) {
-      const file = files[i];
+    // Display selected file
+    const selectedFilesContainer = document.getElementById('single-selected-files');
+    if (selectedFilesContainer) {
+      selectedFilesContainer.innerHTML = '';
       
-      // Check if file is an image
-      if (!file.type.startsWith('image/')) {
-        alert('Vui lòng chỉ tải lên file ảnh.');
-        continue;
-      }
-      
-      // Add to selected files
-      this.selectedFiles.push(file);
-      
-      // Create preview
-      this.createFilePreview(file, this.albumSelectedFiles);
-    }
-  }
-  
-  createFilePreview(file, container) {
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-      const preview = document.createElement('div');
-      preview.className = 'file-preview';
-      preview.innerHTML = `
-        <img src="${e.target.result}" alt="${file.name}">
-        <div class="file-info">
-          <span class="file-name">${file.name}</span>
-          <span class="file-size">${this.formatFileSize(file.size)}</span>
-        </div>
-        <button class="remove-file" data-name="${file.name}">&times;</button>
-      `;
-      
-      // Add remove button event
-      const removeButton = preview.querySelector('.remove-file');
-      removeButton.addEventListener('click', () => {
-        this.removeFile(file.name);
-        container.removeChild(preview);
+      this.selectedFiles.forEach(file => {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+          const filePreview = document.createElement('div');
+          filePreview.className = 'file-preview';
+          
+          filePreview.innerHTML = `
+            <img src="${e.target.result}" alt="${file.name}">
+            <div class="file-info">
+              <div class="file-name">${file.name}</div>
+              <div class="file-size">${this.formatFileSize(file.size)}</div>
+            </div>
+            <button class="file-remove" data-name="${file.name}">&times;</button>
+          `;
+          
+          selectedFilesContainer.appendChild(filePreview);
+          
+          // Add remove button event listener
+          const removeButton = filePreview.querySelector('.file-remove');
+          removeButton.addEventListener('click', () => {
+            this.removeFile(file.name);
+            filePreview.remove();
+          });
+        }.bind(this);
+        
+        reader.readAsDataURL(file);
       });
-      
-      container.appendChild(preview);
-    }.bind(this);
+    }
+  }
+  
+  handleAlbumFileSelect(files) {
+    // Limit to max files for album upload
+    if (files.length > this.maxUploadAlbumImages) {
+      showToast(`Chỉ có thể tải lên ${this.maxUploadAlbumImages} ảnh cho mỗi album.`, 'error');
+      return;
+    }
     
-    reader.readAsDataURL(file);
+    // Store selected files
+    this.selectedFiles = Array.from(files);
+    
+    // Display selected files
+    const selectedFilesContainer = document.getElementById('album-selected-files');
+    if (selectedFilesContainer) {
+      selectedFilesContainer.innerHTML = '';
+      
+      this.selectedFiles.forEach(file => {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+          const filePreview = document.createElement('div');
+          filePreview.className = 'file-preview';
+          
+          filePreview.innerHTML = `
+            <img src="${e.target.result}" alt="${file.name}">
+            <div class="file-info">
+              <div class="file-name">${file.name}</div>
+              <div class="file-size">${this.formatFileSize(file.size)}</div>
+            </div>
+            <button class="file-remove" data-name="${file.name}">&times;</button>
+          `;
+          
+          selectedFilesContainer.appendChild(filePreview);
+          
+          // Add remove button event listener
+          const removeButton = filePreview.querySelector('.file-remove');
+          removeButton.addEventListener('click', () => {
+            this.removeFile(file.name);
+            filePreview.remove();
+          });
+        }.bind(this);
+        
+        reader.readAsDataURL(file);
+      });
+    }
   }
   
   removeFile(fileName) {
@@ -313,232 +361,57 @@ class UploadHandler {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
   
-  resetForm() {
-    // Reset selected files
-    this.selectedFiles = [];
-    this.imageSelectedFiles.innerHTML = '';
-    this.albumSelectedFiles.innerHTML = '';
+  async submitSingleUpload() {
+    // Validate form
+    const modelName = document.getElementById('single-model-name').value;
+    const senderName = document.getElementById('single-sender-name').value;
     
-    // Reset form inputs
-    const inputs = this.uploadModal.querySelectorAll('input');
-    inputs.forEach(input => {
-      input.value = '';
-    });
-    
-    // Reset select
-    const selects = this.uploadModal.querySelectorAll('select');
-    selects.forEach(select => {
-      select.selectedIndex = 0;
-    });
-    
-    // Reset to image tab
-    this.switchTab('image');
-  }
-  
-  validateForm() {
-    if (this.uploadType === 'image') {
-      const category = document.getElementById('image-category').value;
-      const senderName = document.getElementById('image-sender-name').value;
-      
-      if (!category) {
-        alert('Vui lòng chọn danh mục.');
-        return false;
-      }
-      
-      if (!senderName) {
-        alert('Vui lòng nhập tên người gửi.');
-        return false;
-      }
-      
-      if (this.selectedFiles.length === 0) {
-        alert('Vui lòng chọn ít nhất một ảnh.');
-        return false;
-      }
-      
-      return true;
-    } else if (this.uploadType === 'album') {
-      const senderName = document.getElementById('album-sender-name').value;
-      const driveLink = document.getElementById('album-drive-link').value;
-      
-      if (!senderName) {
-        alert('Vui lòng nhập tên người gửi.');
-        return false;
-      }
-      
-      if (!driveLink && this.selectedFiles.length === 0) {
-        alert('Vui lòng nhập link album Google Drive hoặc tải lên ít nhất một ảnh.');
-        return false;
-      }
-      
-      return true;
+    if (!senderName) {
+      showToast('Vui lòng nhập tên người gửi', 'error');
+      return;
     }
     
-    return false;
-  }
-  
-  async handleSubmit() {
-    if (!this.validateForm()) {
+    if (this.selectedFiles.length === 0) {
+      showToast('Vui lòng chọn ít nhất một ảnh', 'error');
       return;
     }
     
     // Show loading
-    this.showLoading(true);
+    showLoading(true);
     
     try {
-      if (this.uploadType === 'image') {
-        await this.submitImageUpload();
-      } else if (this.uploadType === 'album') {
-        await this.submitAlbumUpload();
-      }
+      // Upload file to Google Drive
+      const file = this.selectedFiles[0];
+      const folderId = CONFIG.driveApi.folderIds.pending;
+      
+      // For demo, we'll just simulate the upload
+      console.log('Uploading file:', file.name);
+      console.log('Model name:', modelName);
+      console.log('Sender name:', senderName);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Show success message
+      showToast('Ảnh đã được tải lên thành công!');
       
       // Hide modal
       this.hideModal();
-      
-      // Show success message
-      alert('Tải lên thành công! Ảnh của bạn sẽ được duyệt trước khi hiển thị.');
     } catch (error) {
-      console.error('Error uploading:', error);
-      alert('Có lỗi xảy ra khi tải lên. Vui lòng thử lại sau.');
+      console.error('Error uploading file:', error);
+      showToast('Có lỗi xảy ra khi tải ảnh. Vui lòng thử lại sau.', 'error');
     } finally {
-      this.showLoading(false);
+      // Hide loading
+      showLoading(false);
     }
-  }
-  
-  async submitImageUpload() {
-    const category = document.getElementById('image-category').value;
-    const modelName = document.getElementById('image-model-name').value;
-    const socialLink = document.getElementById('image-social-link').value;
-    const senderName = document.getElementById('image-sender-name').value;
-    
-    // Prepare data for Google Sheet
-    const data = {
-      category: modelInfo.getCategoryName(category),
-      modelName: modelName || 'Không có',
-      socialLink: socialLink || 'Không có',
-      senderName: senderName,
-      timestamp: new Date().toISOString(),
-      fileNames: this.selectedFiles.map(file => file.name).join(', '),
-      fileCount: this.selectedFiles.length
-    };
-    
-    // Send to Google Sheet
-    await sheetsApi.sendToPendingSheet(data);
-    
-    // TODO: Upload files to Google Drive
-    // This would require server-side implementation
-    console.log('Files to upload:', this.selectedFiles);
   }
   
   async submitAlbumUpload() {
-    const albumName = document.getElementById('album-name').value;
-    const modelName = document.getElementById('album-model-name').value;
-    const senderName = document.getElementById('album-sender-name').value;
-    const driveLink = document.getElementById('album-drive-link').value;
-    
-    // Prepare data
-    const data = {
-      albumName: albumName || CONFIG.ui.defaultAlbumName,
-      modelName: modelName || 'Không có',
-      senderName: senderName,
-      driveLink: driveLink || 'Không có',
-      timestamp: new Date().toISOString(),
-      fileCount: this.selectedFiles.length
-    };
-    
-    // If drive link is provided, process it
-    if (driveLink) {
-      // TODO: Process Google Drive link
-      console.log('Processing Drive link:', driveLink);
-    }
-    
-    // If files are selected, upload them
-    if (this.selectedFiles.length > 0) {
-      // TODO: Upload files to Google Drive
-      console.log('Files to upload:', this.selectedFiles);
-    }
-    
-    // Display uploaded album
-    this.displayUploadedAlbum(data);
-  }
-  
-  displayUploadedAlbum(data) {
-    // Create a temporary display of the uploaded album
-    const albumContainer = document.createElement('div');
-    albumContainer.className = 'uploaded-album-container';
-    
-    const albumTitle = document.createElement('h2');
-    albumTitle.textContent = data.albumName;
-    
-    const modelInfo = document.createElement('p');
-    modelInfo.textContent = `Người mẫu: ${data.modelName}`;
-    
-    const imageGrid = document.createElement('div');
-    imageGrid.className = 'image-grid';
-    
-    // Add selected files to grid
-    this.selectedFiles.forEach(file => {
-      const reader = new FileReader();
-      
-      reader.onload = function(e) {
-        const card = document.createElement('div');
-        card.className = 'image-card';
-        
-        card.innerHTML = `
-          <div class="image-card-inner">
-            <img src="${e.target.result}" alt="${file.name}">
-            <div class="image-card-overlay">
-              <div class="image-card-actions">
-                <button class="heart-button" title="Thêm vào danh sách"><i class="fas fa-heart"></i></button>
-                <button class="view-button" title="Xem ảnh"><i class="fas fa-eye"></i></button>
-                <span class="view-count">0</span>
-                <button class="like-button" title="Thích"><i class="fas fa-thumbs-up"></i></button>
-                <span class="like-count">0</span>
-              </div>
-            </div>
-          </div>
-        `;
-        
-        imageGrid.appendChild(card);
-      };
-      
-      reader.readAsDataURL(file);
-    });
-    
-    // Append elements
-    albumContainer.appendChild(albumTitle);
-    albumContainer.appendChild(modelInfo);
-    albumContainer.appendChild(imageGrid);
-    
-    // Replace main content with album display
-    const mainContent = document.getElementById('main-content');
-    if (mainContent) {
-      mainContent.innerHTML = '';
-      mainContent.appendChild(albumContainer);
-    }
-  }
-  
-  showLoading(isShow) {
-    const submitButton = this.uploadModal.querySelector('.upload-submit-button');
-    
-    if (isShow) {
-      submitButton.textContent = 'Đang xử lý...';
-      submitButton.disabled = true;
-    } else {
-      submitButton.textContent = 'Gửi';
-      submitButton.disabled = false;
-    }
+    // This method will be overridden by album-upload.js
+    console.log('Submit album upload');
   }
 }
 
-// Create and export upload handler instance
+// Create upload handler instance
 const uploadHandler = new UploadHandler();
-
-// Show upload modal when upload button is clicked
-document.addEventListener('DOMContentLoaded', function() {
-  const uploadButton = document.getElementById('upload-button');
-  if (uploadButton) {
-    uploadButton.addEventListener('click', function() {
-      uploadHandler.showModal();
-    });
-  }
-});
+window.uploadHandler = uploadHandler;

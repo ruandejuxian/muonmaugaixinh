@@ -107,19 +107,19 @@ function updateCategoryInfo(category) {
         categoryTitle.textContent = 'Tất cả ảnh';
         categoryDescription.textContent = 'Bộ sưu tập tất cả các ảnh';
         break;
-      case 'viet-nam':
+      case 'vietnam':
         categoryTitle.textContent = 'Gái Việt';
         categoryDescription.textContent = 'Bộ sưu tập ảnh người mẫu Việt Nam';
         break;
-      case 'au-my':
+      case 'western':
         categoryTitle.textContent = 'Gái Âu Mỹ';
         categoryDescription.textContent = 'Bộ sưu tập ảnh người mẫu Âu Mỹ';
         break;
-      case 'chau-a':
+      case 'asian':
         categoryTitle.textContent = 'Gái Châu Á';
         categoryDescription.textContent = 'Bộ sưu tập ảnh người mẫu Châu Á';
         break;
-      case 'khac':
+      case 'other':
         categoryTitle.textContent = 'Nơi Khác';
         categoryDescription.textContent = 'Bộ sưu tập ảnh khác';
         break;
@@ -148,16 +148,16 @@ function loadImages(category, sort = 'newest') {
     case 'all':
       folderId = CONFIG.driveApi.folderIds.root;
       break;
-    case 'viet-nam':
+    case 'vietnam':
       folderId = CONFIG.driveApi.folderIds.vietnam;
       break;
-    case 'au-my':
+    case 'western':
       folderId = CONFIG.driveApi.folderIds.western;
       break;
-    case 'chau-a':
+    case 'asian':
       folderId = CONFIG.driveApi.folderIds.asian;
       break;
-    case 'khac':
+    case 'other':
       folderId = CONFIG.driveApi.folderIds.other;
       break;
     default:
@@ -198,16 +198,16 @@ function loadMoreImages(category, sort = 'newest') {
     case 'all':
       folderId = CONFIG.driveApi.folderIds.root;
       break;
-    case 'viet-nam':
+    case 'vietnam':
       folderId = CONFIG.driveApi.folderIds.vietnam;
       break;
-    case 'au-my':
+    case 'western':
       folderId = CONFIG.driveApi.folderIds.western;
       break;
-    case 'chau-a':
+    case 'asian':
       folderId = CONFIG.driveApi.folderIds.asian;
       break;
-    case 'khac':
+    case 'other':
       folderId = CONFIG.driveApi.folderIds.other;
       break;
     default:
@@ -268,11 +268,12 @@ function createImageCard(file) {
   card.setAttribute('data-id', file.id);
   
   // Get model info if available
-  const modelInfo = window.modelInfo ? modelInfo.getModel(file.id) : null;
+  const modelInfo = window.modelInfo ? window.modelInfo.getModel(file.id) : null;
   
   // Create image URL with proxy to avoid CORS issues
   const imageUrl = `${CONFIG.cloudflare.proxyUrl}?fileId=${file.id}`;
   
+  // Create card HTML with model info for hover
   card.innerHTML = `
     <div class="image-card-inner">
       <img src="${imageUrl}" alt="${file.name}" loading="lazy">
@@ -283,6 +284,15 @@ function createImageCard(file) {
           <span class="view-count">${file.viewCount || 0}</span>
           <button class="like-button" title="Thích"><i class="fas fa-thumbs-up"></i></button>
           <span class="like-count">${file.likeCount || 0}</span>
+        </div>
+        <div class="image-card-model-info">
+          <div class="image-card-model-name">${modelInfo ? modelInfo.name : file.name}</div>
+          <div class="image-card-title">${file.name}</div>
+          <div class="image-card-social">
+            ${modelInfo && modelInfo.instagram ? `<a href="${modelInfo.instagram}" target="_blank" title="Instagram"><i class="fab fa-instagram"></i></a>` : ''}
+            ${modelInfo && modelInfo.facebook ? `<a href="${modelInfo.facebook}" target="_blank" title="Facebook"><i class="fab fa-facebook"></i></a>` : ''}
+            ${modelInfo && modelInfo.twitter ? `<a href="${modelInfo.twitter}" target="_blank" title="Twitter"><i class="fab fa-twitter"></i></a>` : ''}
+          </div>
         </div>
       </div>
     </div>
@@ -352,75 +362,63 @@ function toggleFavorite(imageId, button) {
     // Remove from favorites
     favorites.splice(index, 1);
     
-    // Show message
+    // Show success message
     showToast('Đã xóa khỏi danh sách yêu thích');
   }
   
-  // Save updated favorites
+  // Save to localStorage
   localStorage.setItem('favorites', JSON.stringify(favorites));
+  
+  // Update UI to reflect changes
+  updateFavoriteUI();
+}
+
+// Update favorite UI
+function updateFavoriteUI() {
+  // Get current favorites from localStorage
+  const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+  
+  // Update heart buttons in image grid
+  const imageCards = document.querySelectorAll('.image-card');
+  
+  imageCards.forEach(card => {
+    const id = card.getAttribute('data-id');
+    const heartButton = card.querySelector('.heart-button');
+    
+    if (heartButton) {
+      const isFavorite = favorites.some(fav => fav.id === id);
+      heartButton.classList.toggle('active', isFavorite);
+    }
+  });
 }
 
 // Like an image
 function likeImage(imageId, button) {
-  // Get current likes from localStorage
-  const likes = JSON.parse(localStorage.getItem('likes') || '[]');
+  button.classList.toggle('active');
+  
+  // Get like counts from localStorage
+  const likeCounts = JSON.parse(localStorage.getItem('likeCounts') || '{}');
   
   // Check if already liked
-  if (!likes.includes(imageId)) {
-    // Add to likes
-    likes.push(imageId);
-    
-    // Update UI
-    const likeCount = button.nextElementSibling;
-    likeCount.textContent = parseInt(likeCount.textContent || '0') + 1;
-    
-    // Add active class
-    button.classList.add('active');
+  if (button.classList.contains('active')) {
+    // Increment like count
+    likeCounts[imageId] = (likeCounts[imageId] || 0) + 1;
     
     // Show success message
-    showToast('Đã thích ảnh này');
+    showToast('Đã thích ảnh');
   } else {
-    // Already liked, show message
-    showToast('Bạn đã thích ảnh này rồi');
+    // Decrement like count
+    likeCounts[imageId] = Math.max(0, (likeCounts[imageId] || 0) - 1);
   }
   
-  // Save updated likes
-  localStorage.setItem('likes', JSON.stringify(likes));
-}
-
-// Search images
-function searchImages(query) {
-  if (!query || query.trim() === '') {
-    // If empty query, show all images
-    const category = document.querySelector('.sidebar-nav li.active a').getAttribute('data-category');
-    loadImages(category);
-    return;
-  }
+  // Save to localStorage
+  localStorage.setItem('likeCounts', JSON.stringify(likeCounts));
   
-  // Show loading indicator
-  showLoading(true);
-  
-  // Search in Google Drive
-  driveApi.searchFiles(query, CONFIG.ui.imagesPerPage)
-    .then(files => {
-      // Hide loading indicator
-      showLoading(false);
-      
-      // Update category info
-      document.getElementById('category-title').textContent = `Kết quả tìm kiếm: ${query}`;
-      document.getElementById('category-description').textContent = `Tìm thấy ${files.length} kết quả`;
-      
-      // Display search results
-      displayImages(files);
-      
-      // Show/hide load more button based on if there are more results
-      toggleLoadMoreButton(files.length >= CONFIG.ui.imagesPerPage);
-    })
-    .catch(error => {
-      console.error('Error searching images:', error);
-      showError('Không thể tìm kiếm. Vui lòng thử lại sau.');
-      showLoading(false);
-    });
+  // Update UI
+  const likeCountElements = document.querySelectorAll(`.image-card[data-id="${imageId}"] .like-count`);
+  likeCountElements.forEach(element => {
+    element.textContent = likeCounts[imageId] || 0;
+  });
 }
 
 // Copy selected images to clipboard
@@ -429,30 +427,29 @@ function copySelectedImages() {
   const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
   
   if (favorites.length === 0) {
-    showToast('Chưa có ảnh nào được chọn');
+    showToast('Chưa có ảnh nào được chọn', 'error');
     return;
   }
   
-  // Format text to copy
-  let copyText = 'Danh sách ảnh đã chọn:\n\n';
+  // Create text to copy
+  let text = 'Danh sách ảnh đã chọn:\n\n';
   
   favorites.forEach((fav, index) => {
-    copyText += `${index + 1}. ${fav.name}\n`;
-    copyText += `   URL: ${fav.url}\n`;
+    text += `${index + 1}. ${fav.name}\n`;
     if (fav.note) {
-      copyText += `   Ghi chú: ${fav.note}\n`;
+      text += `   Ghi chú: ${fav.note}\n`;
     }
-    copyText += '\n';
+    text += `   Link: ${fav.url}\n\n`;
   });
   
   // Copy to clipboard
-  navigator.clipboard.writeText(copyText)
+  navigator.clipboard.writeText(text)
     .then(() => {
       showToast('Đã sao chép danh sách ảnh vào clipboard');
     })
     .catch(err => {
-      console.error('Error copying text: ', err);
-      showError('Không thể sao chép. Vui lòng thử lại.');
+      console.error('Could not copy text: ', err);
+      showToast('Không thể sao chép danh sách', 'error');
     });
 }
 
@@ -462,31 +459,192 @@ function sendToSheet() {
   const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
   
   if (favorites.length === 0) {
-    showToast('Chưa có ảnh nào được chọn');
+    showToast('Chưa có ảnh nào được chọn', 'error');
     return;
   }
   
+  // Show sheet form
+  showSheetForm(favorites);
+}
+
+// Show Google Sheet form
+function showSheetForm(favorites) {
+  // Check if form already exists
+  let form = document.getElementById('sheet-form');
+  if (!form) {
+    // Create form
+    form = document.createElement('div');
+    form.id = 'sheet-form';
+    form.className = 'image-detail-form';
+    
+    form.innerHTML = `
+      <div class="form-header">
+        <h3>Gửi đến Google Sheet</h3>
+        <button class="form-close">&times;</button>
+      </div>
+      <div class="form-content">
+        <div class="form-group">
+          <label for="sheet-email">Email của bạn</label>
+          <input type="email" id="sheet-email" placeholder="Nhập email của bạn">
+        </div>
+        <div class="form-group">
+          <label for="sheet-name">Tên của bạn</label>
+          <input type="text" id="sheet-name" placeholder="Nhập tên của bạn">
+        </div>
+        <div class="form-group">
+          <label>Danh sách ảnh đã chọn (${favorites.length})</label>
+          <div class="selected-images-preview">
+            ${favorites.map(fav => `
+              <div class="selected-image-item">
+                <img src="${fav.url}" alt="${fav.name}">
+                <div class="selected-image-name">${fav.name}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary send-button">Gửi</button>
+          <button class="btn btn-outline cancel-button">Hủy</button>
+        </div>
+      </div>
+    `;
+    
+    // Add to document
+    document.body.appendChild(form);
+    
+    // Add event listeners
+    const closeButton = form.querySelector('.form-close');
+    const cancelButton = form.querySelector('.cancel-button');
+    const sendButton = form.querySelector('.send-button');
+    
+    closeButton.addEventListener('click', () => {
+      form.classList.remove('show');
+    });
+    
+    cancelButton.addEventListener('click', () => {
+      form.classList.remove('show');
+    });
+    
+    sendButton.addEventListener('click', () => {
+      const email = document.getElementById('sheet-email').value;
+      const name = document.getElementById('sheet-name').value;
+      
+      if (!email) {
+        showToast('Vui lòng nhập email của bạn', 'error');
+        return;
+      }
+      
+      // Send to Google Sheet
+      sendToGoogleSheet(favorites, email, name);
+      
+      // Hide form
+      form.classList.remove('show');
+    });
+  } else {
+    // Update favorites list
+    const previewContainer = form.querySelector('.selected-images-preview');
+    if (previewContainer) {
+      previewContainer.innerHTML = favorites.map(fav => `
+        <div class="selected-image-item">
+          <img src="${fav.url}" alt="${fav.name}">
+          <div class="selected-image-name">${fav.name}</div>
+        </div>
+      `).join('');
+    }
+    
+    // Update count
+    const label = form.querySelector('.form-group label');
+    if (label) {
+      label.textContent = `Danh sách ảnh đã chọn (${favorites.length})`;
+    }
+  }
+  
+  // Show form
+  form.classList.add('show');
+}
+
+// Send to Google Sheet
+async function sendToGoogleSheet(favorites, email, name) {
   // Show loading
   showLoading(true);
   
-  // Send to Google Sheet
-  sheetsApi.sendToSheet(favorites)
-    .then(result => {
+  try {
+    // Prepare data
+    const data = {
+      email: email,
+      name: name,
+      images: favorites.map(fav => ({
+        id: fav.id,
+        name: fav.name,
+        note: fav.note || '',
+        url: fav.url
+      })),
+      timestamp: new Date().toISOString()
+    };
+    
+    // Send to Google Sheet
+    await sheetsApi.sendToSheet(data);
+    
+    // Show success message
+    showToast('Đã gửi danh sách ảnh đến Google Sheet');
+  } catch (error) {
+    console.error('Error sending to Google Sheet:', error);
+    showToast('Không thể gửi đến Google Sheet. Vui lòng thử lại sau.', 'error');
+  } finally {
+    // Hide loading
+    showLoading(false);
+  }
+}
+
+// Search images
+function searchImages(query) {
+  if (!query) return;
+  
+  // Show loading indicator
+  showLoading(true);
+  
+  // Update category title and description
+  const categoryTitle = document.getElementById('category-title');
+  const categoryDescription = document.getElementById('category-description');
+  
+  if (categoryTitle) {
+    categoryTitle.textContent = `Kết quả tìm kiếm: ${query}`;
+  }
+  
+  if (categoryDescription) {
+    categoryDescription.textContent = 'Các ảnh phù hợp với từ khóa tìm kiếm';
+  }
+  
+  // Clear current images
+  const imageGrid = document.getElementById('image-grid');
+  if (imageGrid) {
+    imageGrid.innerHTML = '';
+  }
+  
+  // Search images
+  driveApi.searchFiles(query)
+    .then(files => {
+      // Hide loading indicator
       showLoading(false);
-      showToast('Đã gửi danh sách ảnh đến Google Sheet');
+      
+      // Display images
+      displayImages(files);
+      
+      // Hide load more button for search results
+      toggleLoadMoreButton(false);
     })
     .catch(error => {
-      console.error('Error sending to sheet:', error);
+      console.error('Error searching images:', error);
+      showError('Không thể tìm kiếm ảnh. Vui lòng thử lại sau.');
       showLoading(false);
-      showError('Không thể gửi đến Google Sheet. Vui lòng thử lại sau.');
     });
 }
 
 // Show/hide loading indicator
-function showLoading(isLoading) {
+function showLoading(isShow) {
   const loadingIndicator = document.getElementById('loading-indicator');
   if (loadingIndicator) {
-    if (isLoading) {
+    if (isShow) {
       loadingIndicator.classList.add('show');
     } else {
       loadingIndicator.classList.remove('show');
@@ -498,18 +656,13 @@ function showLoading(isLoading) {
 function showError(message) {
   const errorContainer = document.getElementById('error-container');
   if (errorContainer) {
-    errorContainer.textContent = message;
-    errorContainer.classList.add('show');
-    
-    // Hide after 5 seconds
-    setTimeout(() => {
-      errorContainer.classList.remove('show');
-    }, 5000);
+    errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+    errorContainer.style.display = 'block';
   }
 }
 
 // Show toast message
-function showToast(message) {
+function showToast(message, type = 'success') {
   // Create toast if it doesn't exist
   let toast = document.getElementById('toast');
   if (!toast) {
@@ -518,6 +671,9 @@ function showToast(message) {
     toast.className = 'toast';
     document.body.appendChild(toast);
   }
+  
+  // Add type class
+  toast.className = `toast ${type}`;
   
   // Set message and show
   toast.textContent = message;
@@ -537,410 +693,34 @@ function toggleLoadMoreButton(show) {
   }
 }
 
-// Initialize image viewer
-function initializeImageViewer() {
-  // Create image viewer if it doesn't exist
-  let imageViewer = document.getElementById('image-viewer');
-  if (!imageViewer) {
-    imageViewer = document.createElement('div');
-    imageViewer.id = 'image-viewer';
-    imageViewer.className = 'image-viewer';
-    
-    imageViewer.innerHTML = `
-      <div class="image-viewer-header">
-        <h3 class="image-viewer-title"></h3>
-        <button class="image-viewer-close">&times;</button>
-      </div>
-      <div class="image-viewer-content">
-        <img class="image-viewer-img" src="" alt="">
-        <div class="image-viewer-nav">
-          <button class="image-viewer-prev"><i class="fas fa-chevron-left"></i></button>
-          <button class="image-viewer-next"><i class="fas fa-chevron-right"></i></button>
-        </div>
-      </div>
-      <div class="image-viewer-footer">
-        <div class="image-viewer-info">
-          <span class="image-viewer-model"></span>
-          <span class="image-viewer-note"></span>
-        </div>
-        <div class="image-viewer-actions">
-          <button class="image-viewer-download"><i class="fas fa-download"></i> Tải xuống</button>
-          <button class="image-viewer-heart"><i class="fas fa-heart"></i> Thêm vào danh sách</button>
-          <button class="image-viewer-share"><i class="fas fa-share-alt"></i> Chia sẻ</button>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(imageViewer);
-    
-    // Add event listeners
-    const closeButton = imageViewer.querySelector('.image-viewer-close');
-    const prevButton = imageViewer.querySelector('.image-viewer-prev');
-    const nextButton = imageViewer.querySelector('.image-viewer-next');
-    const downloadButton = imageViewer.querySelector('.image-viewer-download');
-    const heartButton = imageViewer.querySelector('.image-viewer-heart');
-    const shareButton = imageViewer.querySelector('.image-viewer-share');
-    
-    if (closeButton) {
-      closeButton.addEventListener('click', closeImageViewer);
-    }
-    
-    if (prevButton) {
-      prevButton.addEventListener('click', showPreviousImage);
-    }
-    
-    if (nextButton) {
-      nextButton.addEventListener('click', showNextImage);
-    }
-    
-    if (downloadButton) {
-      downloadButton.addEventListener('click', downloadCurrentImage);
-    }
-    
-    if (heartButton) {
-      heartButton.addEventListener('click', favoriteCurrentImage);
-    }
-    
-    if (shareButton) {
-      shareButton.addEventListener('click', shareCurrentImage);
-    }
-    
-    // Close on escape key
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        closeImageViewer();
-      } else if (e.key === 'ArrowLeft') {
-        showPreviousImage();
-      } else if (e.key === 'ArrowRight') {
-        showNextImage();
-      }
-    });
-  }
-}
-
-// Current image in viewer
-let currentImageIndex = 0;
-let currentImages = [];
-
-// Open image viewer
-function openImageViewer(imageId, imageUrl, imageName, modelInfo) {
-  const imageViewer = document.getElementById('image-viewer');
-  if (!imageViewer) return;
-  
-  // Get all current images
-  const imageCards = document.querySelectorAll('.image-card');
-  currentImages = Array.from(imageCards).map(card => ({
-    id: card.getAttribute('data-id'),
-    url: card.querySelector('img').src,
-    name: card.querySelector('img').alt
-  }));
-  
-  // Find index of current image
-  currentImageIndex = currentImages.findIndex(img => img.id === imageId);
-  
-  // Set image
-  const viewerImg = imageViewer.querySelector('.image-viewer-img');
-  const viewerTitle = imageViewer.querySelector('.image-viewer-title');
-  const viewerModel = imageViewer.querySelector('.image-viewer-model');
-  
-  if (viewerImg) {
-    viewerImg.src = imageUrl;
-    viewerImg.alt = imageName;
-  }
-  
-  if (viewerTitle) {
-    viewerTitle.textContent = imageName;
-  }
-  
-  if (viewerModel && modelInfo) {
-    viewerModel.textContent = `Người mẫu: ${modelInfo.name || 'Không có thông tin'}`;
-  } else if (viewerModel) {
-    viewerModel.textContent = '';
-  }
-  
-  // Show viewer
-  imageViewer.classList.add('show');
-  
-  // Disable body scroll
-  document.body.style.overflow = 'hidden';
-  
-  // Increment view count
-  incrementViewCount(imageId);
-}
-
-// Close image viewer
-function closeImageViewer() {
-  const imageViewer = document.getElementById('image-viewer');
-  if (!imageViewer) return;
-  
-  // Hide viewer
-  imageViewer.classList.remove('show');
-  
-  // Enable body scroll
-  document.body.style.overflow = '';
-}
-
-// Show previous image
-function showPreviousImage() {
-  if (currentImages.length === 0) return;
-  
-  // Update index
-  currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
-  
-  // Get image data
-  const image = currentImages[currentImageIndex];
-  
-  // Update viewer
-  const imageViewer = document.getElementById('image-viewer');
-  if (!imageViewer) return;
-  
-  const viewerImg = imageViewer.querySelector('.image-viewer-img');
-  const viewerTitle = imageViewer.querySelector('.image-viewer-title');
-  
-  if (viewerImg) {
-    viewerImg.src = image.url;
-    viewerImg.alt = image.name;
-  }
-  
-  if (viewerTitle) {
-    viewerTitle.textContent = image.name;
-  }
-  
-  // Get model info if available
-  const modelInfo = window.modelInfo ? modelInfo.getModel(image.id) : null;
-  const viewerModel = imageViewer.querySelector('.image-viewer-model');
-  
-  if (viewerModel && modelInfo) {
-    viewerModel.textContent = `Người mẫu: ${modelInfo.name || 'Không có thông tin'}`;
-  } else if (viewerModel) {
-    viewerModel.textContent = '';
-  }
-  
-  // Increment view count
-  incrementViewCount(image.id);
-}
-
-// Show next image
-function showNextImage() {
-  if (currentImages.length === 0) return;
-  
-  // Update index
-  currentImageIndex = (currentImageIndex + 1) % currentImages.length;
-  
-  // Get image data
-  const image = currentImages[currentImageIndex];
-  
-  // Update viewer
-  const imageViewer = document.getElementById('image-viewer');
-  if (!imageViewer) return;
-  
-  const viewerImg = imageViewer.querySelector('.image-viewer-img');
-  const viewerTitle = imageViewer.querySelector('.image-viewer-title');
-  
-  if (viewerImg) {
-    viewerImg.src = image.url;
-    viewerImg.alt = image.name;
-  }
-  
-  if (viewerTitle) {
-    viewerTitle.textContent = image.name;
-  }
-  
-  // Get model info if available
-  const modelInfo = window.modelInfo ? modelInfo.getModel(image.id) : null;
-  const viewerModel = imageViewer.querySelector('.image-viewer-model');
-  
-  if (viewerModel && modelInfo) {
-    viewerModel.textContent = `Người mẫu: ${modelInfo.name || 'Không có thông tin'}`;
-  } else if (viewerModel) {
-    viewerModel.textContent = '';
-  }
-  
-  // Increment view count
-  incrementViewCount(image.id);
-}
-
-// Download current image
-function downloadCurrentImage() {
-  if (currentImages.length === 0 || currentImageIndex < 0 || currentImageIndex >= currentImages.length) return;
-  
-  const image = currentImages[currentImageIndex];
-  
-  // Create a temporary link
-  const a = document.createElement('a');
-  a.href = image.url;
-  a.download = image.name;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  
-  // Show success message
-  showToast('Đang tải xuống ảnh...');
-}
-
-// Favorite current image
-function favoriteCurrentImage() {
-  if (currentImages.length === 0 || currentImageIndex < 0 || currentImageIndex >= currentImages.length) return;
-  
-  const image = currentImages[currentImageIndex];
-  
-  // Get current favorites from localStorage
-  const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-  
-  // Check if already favorited
-  const index = favorites.findIndex(fav => fav.id === image.id);
-  
-  if (index === -1) {
-    // Add to favorites
-    favorites.push({
-      id: image.id,
-      url: image.url,
-      name: image.name,
-      note: '',
-      addedAt: new Date().toISOString()
-    });
-    
-    // Show success message
-    showToast('Đã thêm vào danh sách yêu thích');
-  } else {
-    // Remove from favorites
-    favorites.splice(index, 1);
-    
-    // Show message
-    showToast('Đã xóa khỏi danh sách yêu thích');
-  }
-  
-  // Save updated favorites
-  localStorage.setItem('favorites', JSON.stringify(favorites));
-  
-  // Update heart button in grid
-  const imageCard = document.querySelector(`.image-card[data-id="${image.id}"]`);
-  if (imageCard) {
-    const heartButton = imageCard.querySelector('.heart-button');
-    if (heartButton) {
-      if (index === -1) {
-        heartButton.classList.add('active');
-      } else {
-        heartButton.classList.remove('active');
-      }
-    }
-  }
-}
-
-// Share current image
-function shareCurrentImage() {
-  if (currentImages.length === 0 || currentImageIndex < 0 || currentImageIndex >= currentImages.length) return;
-  
-  const image = currentImages[currentImageIndex];
-  
-  // Check if Web Share API is supported
-  if (navigator.share) {
-    navigator.share({
-      title: image.name,
-      url: image.url
-    })
-    .then(() => {
-      showToast('Đã chia sẻ thành công');
-    })
-    .catch(error => {
-      console.error('Error sharing:', error);
-      showToast('Không thể chia sẻ. Vui lòng thử lại.');
-    });
-  } else {
-    // Fallback to copy link
-    navigator.clipboard.writeText(image.url)
-      .then(() => {
-        showToast('Đã sao chép đường dẫn ảnh vào clipboard');
-      })
-      .catch(err => {
-        console.error('Error copying text: ', err);
-        showError('Không thể sao chép. Vui lòng thử lại.');
-      });
-  }
-}
-
-// Increment view count
-function incrementViewCount(imageId) {
-  // Get current views from localStorage
-  const views = JSON.parse(localStorage.getItem('views') || '{}');
-  
-  // Increment view count
-  views[imageId] = (views[imageId] || 0) + 1;
-  
-  // Save updated views
-  localStorage.setItem('views', JSON.stringify(views));
-  
-  // Update UI
-  const imageCard = document.querySelector(`.image-card[data-id="${imageId}"]`);
-  if (imageCard) {
-    const viewCount = imageCard.querySelector('.view-count');
-    if (viewCount) {
-      viewCount.textContent = views[imageId];
-    }
-  }
-}
-
 // Initialize dark mode
 function initializeDarkMode() {
-  // Create dark mode toggle if it doesn't exist
-  let darkModeToggle = document.querySelector('.dark-mode-toggle');
-  if (!darkModeToggle) {
-    darkModeToggle = document.createElement('div');
-    darkModeToggle.className = 'dark-mode-toggle';
-    darkModeToggle.innerHTML = '<i class="fas fa-moon"></i>';
-    document.body.appendChild(darkModeToggle);
-    
-    // Add event listener
-    darkModeToggle.addEventListener('click', toggleDarkMode);
-  }
-  
-  // Check if dark mode is enabled
+  // Check if dark mode is enabled in localStorage
   const isDarkMode = localStorage.getItem('darkMode') === 'true';
   if (isDarkMode) {
     document.body.classList.add('dark-mode');
-    darkModeToggle.innerHTML = '<i class="fas fa-sun"></i>';
   }
-}
-
-// Toggle dark mode
-function toggleDarkMode() {
-  const darkModeToggle = document.querySelector('.dark-mode-toggle');
-  const isDarkMode = document.body.classList.toggle('dark-mode');
-  
-  // Update icon
-  if (darkModeToggle) {
-    darkModeToggle.innerHTML = isDarkMode ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
-  }
-  
-  // Save preference
-  localStorage.setItem('darkMode', isDarkMode);
 }
 
 // Initialize back to top button
 function initializeBackToTop() {
-  // Create back to top button if it doesn't exist
-  let backToTopButton = document.querySelector('.back-to-top');
-  if (!backToTopButton) {
-    backToTopButton = document.createElement('div');
-    backToTopButton.className = 'back-to-top';
-    backToTopButton.innerHTML = '<i class="fas fa-arrow-up"></i>';
-    document.body.appendChild(backToTopButton);
-    
-    // Add event listener
-    backToTopButton.addEventListener('click', () => {
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      });
-    });
-    
-    // Show/hide based on scroll position
+  const backToTopButton = document.querySelector('.back-to-top');
+  if (backToTopButton) {
+    // Show/hide button based on scroll position
     window.addEventListener('scroll', () => {
       if (window.pageYOffset > 300) {
         backToTopButton.classList.add('show');
       } else {
         backToTopButton.classList.remove('show');
       }
+    });
+    
+    // Scroll to top when clicked
+    backToTopButton.addEventListener('click', () => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
     });
   }
 }

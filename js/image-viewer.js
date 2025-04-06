@@ -262,6 +262,127 @@ class ImageViewer {
     
     // Increment view count
     this.incrementViewCount(imageId);
+    
+    // Show form for image details
+    this.showImageForm(imageId, title, modelInfo);
+  }
+  
+  showImageForm(imageId, title, modelInfo) {
+    // Check if form already exists
+    let form = document.getElementById('image-detail-form');
+    if (!form) {
+      // Create form
+      form = document.createElement('div');
+      form.id = 'image-detail-form';
+      form.className = 'image-detail-form';
+      
+      form.innerHTML = `
+        <div class="form-header">
+          <h3>Chi tiết ảnh</h3>
+          <button class="form-close">&times;</button>
+        </div>
+        <div class="form-content">
+          <div class="form-group">
+            <label for="model-name">Tên người mẫu (nếu có)</label>
+            <input type="text" id="model-name" placeholder="Nhập tên người mẫu">
+          </div>
+          <div class="form-group">
+            <label for="sender-name">Tên người gửi</label>
+            <input type="text" id="sender-name" placeholder="Nhập tên của bạn">
+          </div>
+          <div class="form-group">
+            <label for="image-note">Ghi chú</label>
+            <textarea id="image-note" placeholder="Nhập ghi chú cho ảnh này"></textarea>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary save-button">Lưu</button>
+            <button class="btn btn-outline cancel-button">Hủy</button>
+          </div>
+        </div>
+      `;
+      
+      // Add to document
+      document.body.appendChild(form);
+      
+      // Add event listeners
+      const closeButton = form.querySelector('.form-close');
+      const cancelButton = form.querySelector('.cancel-button');
+      const saveButton = form.querySelector('.save-button');
+      
+      closeButton.addEventListener('click', () => {
+        form.classList.remove('show');
+      });
+      
+      cancelButton.addEventListener('click', () => {
+        form.classList.remove('show');
+      });
+      
+      saveButton.addEventListener('click', () => {
+        const modelName = document.getElementById('model-name').value;
+        const senderName = document.getElementById('sender-name').value;
+        const note = document.getElementById('image-note').value;
+        
+        // Save to favorites with note
+        this.saveImageDetails(imageId, title, modelName, senderName, note);
+        
+        // Hide form
+        form.classList.remove('show');
+      });
+    }
+    
+    // Fill form with existing data if available
+    const modelNameInput = document.getElementById('model-name');
+    const noteInput = document.getElementById('image-note');
+    
+    if (modelInfo && modelInfo.name) {
+      modelNameInput.value = modelInfo.name;
+    } else {
+      modelNameInput.value = '';
+    }
+    
+    // Check if image is in favorites
+    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+    const favorite = favorites.find(fav => fav.id === imageId);
+    
+    if (favorite && favorite.note) {
+      noteInput.value = favorite.note;
+    } else {
+      noteInput.value = '';
+    }
+    
+    // Show form
+    form.classList.add('show');
+  }
+  
+  saveImageDetails(imageId, title, modelName, senderName, note) {
+    // Get current favorites
+    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+    
+    // Check if already in favorites
+    const index = favorites.findIndex(fav => fav.id === imageId);
+    
+    if (index !== -1) {
+      // Update existing
+      favorites[index].modelName = modelName;
+      favorites[index].senderName = senderName;
+      favorites[index].note = note;
+    } else {
+      // Add new
+      favorites.push({
+        id: imageId,
+        title: title,
+        modelName: modelName,
+        senderName: senderName,
+        note: note,
+        addedAt: new Date().toISOString()
+      });
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+    
+    // Show success message
+    this.showToast('Đã lưu thông tin ảnh');
   }
   
   close() {
@@ -301,39 +422,6 @@ class ImageViewer {
     this.open(image.id, image.url, image.title, image.modelInfo);
   }
   
-  downloadImage(quality = 'original') {
-    if (!this.currentImage) return;
-    
-    let downloadUrl = this.currentImage.url;
-    
-    // Modify URL based on quality if needed
-    if (quality !== 'original' && downloadUrl.includes('fileId=')) {
-      const fileId = new URL(downloadUrl).searchParams.get('fileId');
-      
-      switch (quality) {
-        case 'high':
-          downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-          break;
-        case 'medium':
-          // For medium quality, we could use a different approach or just use high quality
-          downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-          break;
-        case 'low':
-          // For low quality, we could use the thumbnail
-          downloadUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
-          break;
-      }
-    }
-    
-    // Create a temporary link and trigger download
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = this.currentImage.title || 'image';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
-  
   toggleFavorite() {
     if (!this.currentImage) return;
     
@@ -351,8 +439,8 @@ class ImageViewer {
       favorites.push({
         id: this.currentImage.id,
         url: this.currentImage.url,
-        name: this.currentImage.title,
-        note: '',
+        title: this.currentImage.title,
+        note: this.viewer.querySelector('.image-viewer-note-input').value,
         addedAt: new Date().toISOString()
       });
       
@@ -362,54 +450,31 @@ class ImageViewer {
       // Remove from favorites
       favorites.splice(index, 1);
       
-      // Show message
+      // Show success message
       this.showToast('Đã xóa khỏi danh sách yêu thích');
     }
     
-    // Save updated favorites
+    // Save to localStorage
     localStorage.setItem('favorites', JSON.stringify(favorites));
     
-    // Update heart button in grid if exists
-    const imageCard = document.querySelector(`.image-card[data-id="${this.currentImage.id}"]`);
-    if (imageCard) {
-      const gridHeartButton = imageCard.querySelector('.heart-button');
-      if (gridHeartButton) {
-        if (index === -1) {
-          gridHeartButton.classList.add('active');
-        } else {
-          gridHeartButton.classList.remove('active');
-        }
-      }
-    }
+    // Update UI
+    this.updateFavoriteUI();
   }
   
-  shareImage() {
-    if (!this.currentImage) return;
+  updateFavoriteUI() {
+    // Update heart buttons in image grid
+    const imageCards = document.querySelectorAll('.image-card');
+    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
     
-    // Check if Web Share API is supported
-    if (navigator.share) {
-      navigator.share({
-        title: this.currentImage.title,
-        url: this.currentImage.url
-      })
-      .then(() => {
-        this.showToast('Đã chia sẻ thành công');
-      })
-      .catch(error => {
-        console.error('Error sharing:', error);
-        this.showToast('Không thể chia sẻ. Vui lòng thử lại.');
-      });
-    } else {
-      // Fallback to copy link
-      navigator.clipboard.writeText(this.currentImage.url)
-        .then(() => {
-          this.showToast('Đã sao chép đường dẫn ảnh vào clipboard');
-        })
-        .catch(err => {
-          console.error('Error copying text: ', err);
-          this.showToast('Không thể sao chép. Vui lòng thử lại.');
-        });
-    }
+    imageCards.forEach(card => {
+      const id = card.getAttribute('data-id');
+      const heartButton = card.querySelector('.heart-button');
+      
+      if (heartButton) {
+        const isFavorite = favorites.some(fav => fav.id === id);
+        heartButton.classList.toggle('active', isFavorite);
+      }
+    });
   }
   
   saveNote(note) {
@@ -418,34 +483,109 @@ class ImageViewer {
     // Get current favorites from localStorage
     const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
     
-    // Find the favorite
+    // Check if already favorited
     const index = favorites.findIndex(fav => fav.id === this.currentImage.id);
     
     if (index !== -1) {
       // Update note
       favorites[index].note = note;
       
-      // Save updated favorites
+      // Save to localStorage
       localStorage.setItem('favorites', JSON.stringify(favorites));
       
       // Show success message
       this.showToast('Đã lưu ghi chú');
     } else {
-      // Not in favorites, add it first
+      // Add to favorites with note
       this.toggleFavorite();
-      
-      // Then save note
-      this.saveNote(note);
     }
   }
   
-  zoom(factor, clientX, clientY) {
-    const img = this.viewer.querySelector('.image-viewer-img');
-    const rect = img.getBoundingClientRect();
+  downloadImage(quality = 'original') {
+    if (!this.currentImage) return;
+    
+    // Get image URL based on quality
+    let imageUrl = this.currentImage.url;
+    
+    // For Google Drive images, modify URL to get desired quality
+    if (imageUrl.includes('drive.google.com') || imageUrl.includes(CONFIG.cloudflare.proxyUrl)) {
+      switch (quality) {
+        case 'high':
+          imageUrl = `${CONFIG.cloudflare.proxyUrl}?fileId=${this.currentImage.id}&size=1920`;
+          break;
+        case 'medium':
+          imageUrl = `${CONFIG.cloudflare.proxyUrl}?fileId=${this.currentImage.id}&size=1280`;
+          break;
+        case 'low':
+          imageUrl = `${CONFIG.cloudflare.proxyUrl}?fileId=${this.currentImage.id}&size=800`;
+          break;
+        default:
+          imageUrl = `${CONFIG.cloudflare.proxyUrl}?fileId=${this.currentImage.id}&original=true`;
+      }
+    }
+    
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = this.currentImage.title || 'image';
+    link.target = '_blank';
+    link.click();
+    
+    // Show success message
+    this.showToast('Đang tải ảnh xuống...');
+  }
+  
+  shareImage() {
+    if (!this.currentImage) return;
+    
+    // Check if Web Share API is available
+    if (navigator.share) {
+      navigator.share({
+        title: this.currentImage.title,
+        text: 'Xem ảnh này trên VNGirls',
+        url: window.location.href
+      })
+      .then(() => console.log('Shared successfully'))
+      .catch((error) => console.log('Error sharing:', error));
+    } else {
+      // Fallback to copying URL to clipboard
+      const url = window.location.href;
+      
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          this.showToast('Đã sao chép đường dẫn vào clipboard');
+        })
+        .catch(err => {
+          console.error('Could not copy text: ', err);
+          this.showToast('Không thể sao chép đường dẫn', 'error');
+        });
+    }
+  }
+  
+  incrementViewCount(imageId) {
+    // Get view counts from localStorage
+    const viewCounts = JSON.parse(localStorage.getItem('viewCounts') || '{}');
+    
+    // Increment count
+    viewCounts[imageId] = (viewCounts[imageId] || 0) + 1;
+    
+    // Save to localStorage
+    localStorage.setItem('viewCounts', JSON.stringify(viewCounts));
+    
+    // Update UI
+    const viewCountElements = document.querySelectorAll(`.image-card[data-id="${imageId}"] .view-count`);
+    viewCountElements.forEach(element => {
+      element.textContent = viewCounts[imageId];
+    });
+  }
+  
+  zoom(factor, x, y) {
+    const image = this.viewer.querySelector('.image-viewer-img');
+    const rect = image.getBoundingClientRect();
     
     // Calculate cursor position relative to image
-    const x = clientX ? (clientX - rect.left) / rect.width : 0.5;
-    const y = clientY ? (clientY - rect.top) / rect.height : 0.5;
+    const cursorX = x ? (x - rect.left) / rect.width : 0.5;
+    const cursorY = y ? (y - rect.top) / rect.height : 0.5;
     
     // Update zoom level
     this.zoomLevel *= factor;
@@ -454,35 +594,33 @@ class ImageViewer {
     this.zoomLevel = Math.max(1, Math.min(5, this.zoomLevel));
     
     // Apply zoom
-    if (this.zoomLevel > 1) {
-      this.isZoomed = true;
-      
-      // Apply transform
-      img.style.transform = `scale(${this.zoomLevel}) translate(${this.dragOffset.x}px, ${this.dragOffset.y}px)`;
-      
-      // Update drag offset to maintain cursor position
-      if (factor !== 1) {
-        const offsetX = (rect.width * (factor - 1)) * (x - 0.5);
-        const offsetY = (rect.height * (factor - 1)) * (y - 0.5);
-        
-        this.dragOffset.x -= offsetX / this.zoomLevel;
-        this.dragOffset.y -= offsetY / this.zoomLevel;
-        
-        img.style.transform = `scale(${this.zoomLevel}) translate(${this.dragOffset.x}px, ${this.dragOffset.y}px)`;
-      }
-    } else {
-      this.resetZoom();
-    }
+    image.style.transform = `scale(${this.zoomLevel})`;
+    
+    // Set zoom flag
+    this.isZoomed = this.zoomLevel > 1;
+    
+    // Reset drag offset
+    this.dragOffset = { x: 0, y: 0 };
+    
+    // Apply transform origin based on cursor position
+    image.style.transformOrigin = `${cursorX * 100}% ${cursorY * 100}%`;
   }
   
   resetZoom() {
-    const img = this.viewer.querySelector('.image-viewer-img');
+    const image = this.viewer.querySelector('.image-viewer-img');
     
+    // Reset zoom level
     this.zoomLevel = 1;
-    this.isZoomed = false;
-    this.dragOffset = { x: 0, y: 0 };
     
-    img.style.transform = '';
+    // Reset transform
+    image.style.transform = '';
+    image.style.transformOrigin = '';
+    
+    // Reset zoom flag
+    this.isZoomed = false;
+    
+    // Reset drag offset
+    this.dragOffset = { x: 0, y: 0 };
   }
   
   startDrag(x, y) {
@@ -493,15 +631,20 @@ class ImageViewer {
   drag(x, y) {
     if (!this.isDragging) return;
     
-    const deltaX = (x - this.dragStart.x) / this.zoomLevel;
-    const deltaY = (y - this.dragStart.y) / this.zoomLevel;
+    const image = this.viewer.querySelector('.image-viewer-img');
     
+    // Calculate drag distance
+    const deltaX = x - this.dragStart.x;
+    const deltaY = y - this.dragStart.y;
+    
+    // Update drag offset
     this.dragOffset.x += deltaX;
     this.dragOffset.y += deltaY;
     
-    const img = this.viewer.querySelector('.image-viewer-img');
-    img.style.transform = `scale(${this.zoomLevel}) translate(${this.dragOffset.x}px, ${this.dragOffset.y}px)`;
+    // Apply transform
+    image.style.transform = `scale(${this.zoomLevel}) translate(${this.dragOffset.x}px, ${this.dragOffset.y}px)`;
     
+    // Update drag start position
     this.dragStart = { x, y };
   }
   
@@ -509,27 +652,7 @@ class ImageViewer {
     this.isDragging = false;
   }
   
-  incrementViewCount(imageId) {
-    // Get current views from localStorage
-    const views = JSON.parse(localStorage.getItem('views') || '{}');
-    
-    // Increment view count
-    views[imageId] = (views[imageId] || 0) + 1;
-    
-    // Save updated views
-    localStorage.setItem('views', JSON.stringify(views));
-    
-    // Update UI if image card exists
-    const imageCard = document.querySelector(`.image-card[data-id="${imageId}"]`);
-    if (imageCard) {
-      const viewCount = imageCard.querySelector('.view-count');
-      if (viewCount) {
-        viewCount.textContent = views[imageId];
-      }
-    }
-  }
-  
-  showToast(message) {
+  showToast(message, type = 'success') {
     // Create toast if it doesn't exist
     let toast = document.getElementById('toast');
     if (!toast) {
@@ -538,6 +661,9 @@ class ImageViewer {
       toast.className = 'toast';
       document.body.appendChild(toast);
     }
+    
+    // Add type class
+    toast.className = `toast ${type}`;
     
     // Set message and show
     toast.textContent = message;
@@ -550,27 +676,23 @@ class ImageViewer {
   }
 }
 
-// Create and export image viewer instance
-const imageViewer = new ImageViewer();
+// Initialize image viewer
+let imageViewer;
 
-// Function to open image viewer from outside
-function openImageViewer(imageId, imageUrl, title, modelInfo = null) {
-  // Get all current images
-  const imageCards = document.querySelectorAll('.image-card');
-  const images = Array.from(imageCards).map(card => ({
-    id: card.getAttribute('data-id'),
-    url: card.querySelector('img').src,
-    title: card.querySelector('img').alt,
-    modelInfo: window.modelInfo ? modelInfo.getModel(card.getAttribute('data-id')) : null
-  }));
+function initializeImageViewer() {
+  imageViewer = new ImageViewer();
+  window.imageViewer = imageViewer;
+}
+
+// Open image viewer
+function openImageViewer(imageId, imageUrl, title, modelInfo) {
+  if (!imageViewer) {
+    initializeImageViewer();
+  }
   
-  // Find index of current image
-  const index = images.findIndex(img => img.id === imageId);
-  
-  // Set images and current index
-  imageViewer.setImages(images);
-  imageViewer.setCurrentIndex(index);
-  
-  // Open viewer
   imageViewer.open(imageId, imageUrl, title, modelInfo);
 }
+
+// Export functions
+window.initializeImageViewer = initializeImageViewer;
+window.openImageViewer = openImageViewer;

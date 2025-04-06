@@ -18,6 +18,7 @@ class AlbumUploadHandler {
     const albumDriveLink = document.getElementById('album-drive-link');
     if (albumDriveLink) {
       albumDriveLink.addEventListener('input', this.validateDriveLink.bind(this));
+      albumDriveLink.addEventListener('change', this.handleDriveLinkChange.bind(this));
     }
     
     // Album tab button
@@ -38,6 +39,80 @@ class AlbumUploadHandler {
     } else {
       e.target.setCustomValidity('');
     }
+  }
+  
+  async handleDriveLinkChange(e) {
+    const link = e.target.value.trim();
+    if (!link || !link.includes('drive.google.com')) return;
+    
+    try {
+      // Extract folder ID from link
+      const folderId = driveApi.extractFolderId(link);
+      if (!folderId) {
+        console.error('Could not extract folder ID from link');
+        return;
+      }
+      
+      // Show loading indicator
+      this.showLoading(true);
+      
+      // Get files from the folder
+      const files = await driveApi.getFiles(folderId);
+      
+      // Hide loading indicator
+      this.showLoading(false);
+      
+      // Display preview of images
+      this.displayDriveFolderPreview(files);
+    } catch (error) {
+      console.error('Error handling drive link change:', error);
+      this.showLoading(false);
+      this.showToast('Không thể tải ảnh từ thư mục Google Drive. Vui lòng kiểm tra lại đường dẫn.', 'error');
+    }
+  }
+  
+  displayDriveFolderPreview(files) {
+    // Get the preview container
+    const previewContainer = document.getElementById('album-selected-files');
+    if (!previewContainer) return;
+    
+    // Clear previous preview
+    previewContainer.innerHTML = '';
+    
+    // If no files, show message
+    if (!files || files.length === 0) {
+      previewContainer.innerHTML = '<p class="no-files">Không tìm thấy ảnh nào trong thư mục này.</p>';
+      return;
+    }
+    
+    // Create preview grid
+    const previewGrid = document.createElement('div');
+    previewGrid.className = 'preview-grid';
+    
+    // Add files to preview
+    files.forEach(file => {
+      const previewItem = document.createElement('div');
+      previewItem.className = 'preview-item';
+      
+      // Create image URL with proxy to avoid CORS issues
+      const imageUrl = file.thumbnailLink || `${CONFIG.cloudflare.proxyUrl}?fileId=${file.id}`;
+      
+      previewItem.innerHTML = `
+        <img src="${imageUrl}" alt="${file.name}" loading="lazy">
+        <div class="preview-item-name">${file.name}</div>
+      `;
+      
+      previewGrid.appendChild(previewItem);
+    });
+    
+    // Add preview grid to container
+    previewContainer.appendChild(previewGrid);
+    
+    // Add file count
+    const fileCount = document.createElement('div');
+    fileCount.className = 'file-count';
+    fileCount.textContent = `Tìm thấy ${files.length} ảnh`;
+    previewContainer.appendChild(fileCount);
   }
   
   resetAlbumForm() {
@@ -95,7 +170,7 @@ class AlbumUploadHandler {
   
   async processGoogleDriveAlbum(data) {
     // Extract folder ID from Google Drive link
-    const folderId = this.extractFolderId(data.driveLink);
+    const folderId = driveApi.extractFolderId(data.driveLink);
     
     if (!folderId) {
       throw new Error('Không thể xác định ID thư mục từ đường dẫn Google Drive');
@@ -103,47 +178,20 @@ class AlbumUploadHandler {
     
     // Get files from the folder
     try {
-      // This would typically use the Drive API
-      // For now, we'll just log the folder ID
-      console.log('Processing Google Drive folder:', folderId);
+      // Get files from the folder
+      const files = await driveApi.getFiles(folderId);
       
-      // Update data with folder ID
+      // Update data with folder ID and file count
       data.folderId = folderId;
+      data.fileCount = files.length;
+      
+      // Store files for display
+      data.files = files;
       
       return true;
     } catch (error) {
       console.error('Error processing Google Drive folder:', error);
       throw error;
-    }
-  }
-  
-  extractFolderId(driveLink) {
-    // Extract folder ID from Google Drive link
-    // Example: https://drive.google.com/drive/folders/1HJjnENuLswyPnkbC-cpFjW6Bv3iBd4a5
-    
-    try {
-      const url = new URL(driveLink);
-      
-      // Check if it's a folders link
-      if (url.pathname.includes('/folders/')) {
-        const pathParts = url.pathname.split('/');
-        const folderIdIndex = pathParts.indexOf('folders') + 1;
-        
-        if (folderIdIndex < pathParts.length) {
-          return pathParts[folderIdIndex];
-        }
-      }
-      
-      // Check if it's a file link with id parameter
-      const fileId = url.searchParams.get('id');
-      if (fileId) {
-        return fileId;
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Error extracting folder ID:', error);
-      return null;
     }
   }
   
@@ -217,8 +265,15 @@ class AlbumUploadHandler {
     const imageGrid = document.createElement('div');
     imageGrid.className = 'image-grid';
     
-    // Add files to grid if available
-    if (files && files.length > 0) {
+    // Add files to grid
+    if (data.files && data.files.length > 0) {
+      // If we have files from Google Drive
+      data.files.forEach(file => {
+        const card = this.createImageCard(file);
+        imageGrid.appendChild(card);
+      });
+    } else if (files && files.length > 0) {
+      // If we have uploaded files
       files.forEach(file => {
         const reader = new FileReader();
         
@@ -279,6 +334,68 @@ class AlbumUploadHandler {
     
     // Disable sidebar navigation
     this.disableSidebarNavigation();
+  }
+  
+  createImageCard(file) {
+    const card = document.createElement('div');
+    card.className = 'image-card';
+    card.setAttribute('data-id', file.id);
+    
+    // Create image URL with proxy to avoid CORS issues
+    const imageUrl = file.thumbnailLink || `${CONFIG.cloudflare.proxyUrl}?fileId=${file.id}`;
+    
+    card.innerHTML = `
+      <div class="image-card-inner">
+        <img src="${imageUrl}" alt="${file.name}" loading="lazy">
+        <div class="image-card-overlay">
+          <div class="image-card-actions">
+            <button class="heart-button" title="Thêm vào danh sách"><i class="fas fa-heart"></i></button>
+            <button class="view-button" title="Xem ảnh"><i class="fas fa-eye"></i></button>
+            <span class="view-count">${file.viewCount || 0}</span>
+            <button class="like-button" title="Thích"><i class="fas fa-thumbs-up"></i></button>
+            <span class="like-count">${file.likeCount || 0}</span>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Add event listeners
+    const heartButton = card.querySelector('.heart-button');
+    const viewButton = card.querySelector('.view-button');
+    const likeButton = card.querySelector('.like-button');
+    
+    if (heartButton) {
+      heartButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        this.classList.toggle('active');
+      });
+    }
+    
+    if (viewButton) {
+      viewButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        // Open image viewer
+        if (window.imageViewer) {
+          window.imageViewer.open(file.id, imageUrl, file.name);
+        }
+      });
+    }
+    
+    if (likeButton) {
+      likeButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        this.classList.toggle('active');
+      });
+    }
+    
+    // Make the whole card clickable to open image viewer
+    card.addEventListener('click', function() {
+      if (window.imageViewer) {
+        window.imageViewer.open(file.id, imageUrl, file.name);
+      }
+    });
+    
+    return card;
   }
   
   disableSidebarNavigation() {
