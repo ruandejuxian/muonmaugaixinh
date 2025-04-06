@@ -19,7 +19,7 @@ const CONFIG = {
   
   // Cloudflare Worker settings
   cloudflare: {
-    proxyUrl: 'https://muonmaugaixinh.karrythaonguyen0.workers.dev/'
+    proxyUrl: 'https://gaixinh.karrythaonguyen0.workers.dev/'
   },
   
   // Google Sheets API settings
