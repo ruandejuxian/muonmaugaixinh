@@ -2,8 +2,8 @@
 const CONFIG = {
   // Google Drive API settings
   driveApi: {
-    apiKey: 'AIzaSyABU4L5P1QLdCIzQFQzbjfGx66wON0Oqog',
-    clientId: '479654744127-tqmjvu3psn21dnlt8coj086de7h8qfrr.apps.googleusercontent.com',
+    apiKey: 'AIzaSyDP8hj5CHNWrtkbZvOIphn8Lpravg6SuPo',
+    clientId: '464435996380-kuogss47e9l3430o3gtnug6kgrb7hb0g.apps.googleusercontent.com',
     discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
     scopes: 'https://www.googleapis.com/auth/drive.readonly',
     // Folder IDs for different categories
