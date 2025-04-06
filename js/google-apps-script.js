@@ -2,7 +2,7 @@
 // This code should be deployed as a web app in Google Apps Script
 
 // Global variables
-const SHEET_ID = 'YOUR_SHEET_ID'; // Replace with your actual Sheet ID
+const SHEET_ID = '1yU_sBq7OiupRiXK_AqbhUERlN-V79JKeDCxbf2qvAFU'; // Replace with your actual Sheet ID
 const MAIN_SHEET_NAME = 'Danh sách ảnh';
 const PENDING_SHEET_NAME = 'Chưa duyệt';
 
